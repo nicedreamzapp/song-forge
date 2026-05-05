@@ -330,13 +330,29 @@ def _hydrate_jobs() -> int:
 
 
 # ----- voice-swap pipeline (demucs → seed-vc → ffmpeg) -----------------------
+SWAP_LOCK = threading.Lock()
+
+
 def _run_swap(jid: str) -> None:
     """Background pipeline: demucs split → seed-vc convert → ffmpeg mix.
-    Updates the JOBS[jid] record at every stage so the UI can poll progress."""
+    Serialized via SWAP_LOCK because seed-vc model-loading on MPS can't
+    handle two parallel processes — they hang on memory contention."""
     with JOBS_LOCK:
         job = JOBS.get(jid)
     if not job:
         return
+    # Wait our turn — only one swap runs at a time.
+    if not SWAP_LOCK.acquire(blocking=False):
+        with JOBS_LOCK:
+            job["stage"] = "queued behind another voice swap…"
+        SWAP_LOCK.acquire()
+    try:
+        _run_swap_impl(jid, job)
+    finally:
+        SWAP_LOCK.release()
+
+
+def _run_swap_impl(jid: str, job: Dict[str, Any]) -> None:
     src_wav = Path(job["src_wav"])
     voice_path = Path(job["voice_path"])
     work = SWAP_WORK / jid
