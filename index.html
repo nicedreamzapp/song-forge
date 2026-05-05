@@ -5,16 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>🎙 Song Forge</title>
 <style>
-  :root { color-scheme: dark; --gold:#e9d28b; --gold2:#d6b06b; --bg:#0a0a0c; --pane:#15151a; --line:#2a2a32; --dim:#7a7a82; }
+  :root { color-scheme: dark;
+    --gold:#ffb267;       /* ember-warm highlight (was gold) */
+    --gold2:#ff7a1a;      /* deep forge ember */
+    --ember:#ff8a2a;      /* core forge orange — matches logo */
+    --ember-soft:#ffd6a3; /* warm metallic */
+    --bg:#08060a;
+    --pane:#14101a;
+    --line:#2a2028;
+    --dim:#7a7280;
+  }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; min-height: 100%; background: radial-gradient(ellipse at top, #16161e 0%, #08080b 60%);
+  html, body { margin: 0; padding: 0; min-height: 100%;
+    background:
+      radial-gradient(ellipse 1200px 700px at 50% 105%, rgba(255,120,30,0.18) 0%, rgba(255,120,30,0) 60%),
+      radial-gradient(ellipse at top, #16121a 0%, #06040a 65%);
     color: #eee; font-family: -apple-system, system-ui, "SF Pro Text", Helvetica, Arial, sans-serif; }
   body { display: flex; flex-direction: column; min-height: 100vh; }
-  header { padding: 12px 20px 6px; display:flex; align-items:baseline; gap:10px; }
-  header h1 { margin:0; font-size:18px; letter-spacing:.05em;
-    background: linear-gradient(90deg, var(--gold2), var(--gold) 50%, var(--gold2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  header .sub { color: var(--dim); font-size: 11px; letter-spacing:.04em; }
+  header { padding: 18px 24px 8px; display:flex; align-items:center; gap:14px; }
+  header h1 { margin:0; font-size:24px; letter-spacing:.32em; font-weight:800;
+    background: linear-gradient(90deg, var(--gold2), var(--ember-soft) 50%, var(--gold2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 24px rgba(255,138,42,.35);
+    filter: drop-shadow(0 0 18px rgba(255,138,42,.25));
+  }
+  header .brand-mark { width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffe1b8 0%, #ff8a2a 35%, #b04a08 70%, #2a0e02 100%);
+    box-shadow: 0 0 18px rgba(255,138,42,.55), inset 0 0 6px rgba(255,200,140,.6);
+    animation: emberPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes emberPulse {
+    0%,100% { box-shadow: 0 0 14px rgba(255,138,42,.45), inset 0 0 6px rgba(255,200,140,.5); }
+    50%     { box-shadow: 0 0 26px rgba(255,138,42,.85), inset 0 0 9px rgba(255,220,160,.85); }
+  }
+  header .sub { color: var(--ember-soft); opacity: .65; font-size: 11px; letter-spacing:.18em; text-transform: uppercase; }
   main { flex:1; display:flex; align-items:flex-start; justify-content:center; padding: 8px 20px 20px; }
   .stage { width: 100%; max-width: 760px; }
   .card { background: linear-gradient(180deg, var(--pane) 0%, #0e0e12 100%);
@@ -37,13 +61,26 @@
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold2); }
 
   .makeBtn {
-    margin: 12px auto 4px; display: block; width: 100%;
-    background: linear-gradient(180deg, #2c1f0d, #1a1208);
-    border: 1px solid #6b4e1f; color: var(--gold); font-size: 15px; letter-spacing: .1em;
-    padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
-    transition: transform .1s, box-shadow .2s, background .2s;
+    margin: 16px auto 4px; display: block; width: 100%;
+    background: linear-gradient(180deg, #4a2510 0%, #2a140a 60%, #1a0e06 100%);
+    border: 1px solid rgba(255,138,42,.55); color: var(--ember-soft);
+    font-size: 16px; letter-spacing: .22em; font-weight: 800;
+    padding: 16px; border-radius: 12px; cursor: pointer;
+    text-transform: uppercase;
+    box-shadow:
+      inset 0 1px 0 rgba(255,200,140,.25),
+      inset 0 -1px 0 rgba(0,0,0,.5),
+      0 0 0 0 rgba(255,138,42,0);
+    transition: transform .12s, box-shadow .25s, background .25s, border-color .25s;
   }
-  .makeBtn:hover { background: linear-gradient(180deg, #3a2810, #21170a); box-shadow: 0 0 24px rgba(233,210,139,.25); }
+  .makeBtn:hover {
+    background: linear-gradient(180deg, #6b3414 0%, #3a1c0c 60%, #21110a 100%);
+    border-color: rgba(255,170,80,.85);
+    box-shadow:
+      inset 0 1px 0 rgba(255,220,160,.40),
+      inset 0 -1px 0 rgba(0,0,0,.5),
+      0 0 36px rgba(255,138,42,.55);
+  }
   .makeBtn:active { transform: scale(.99); }
   .makeBtn[disabled] { opacity: .55; cursor: progress; }
 
@@ -71,22 +108,33 @@
     to   { background-position: 28px 0; }
   }
 
-  .makeBtn.ready { animation: btnGlow 1.6s ease-in-out infinite; }
+  .makeBtn.ready { animation: btnGlow 1.8s ease-in-out infinite; }
   @keyframes btnGlow {
-    0%,100% { box-shadow: 0 0 0 0 rgba(233,210,139,0); }
-    50%     { box-shadow: 0 0 22px 4px rgba(233,210,139,.45); }
+    0%,100% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,220,160,.30),
+        inset 0 -1px 0 rgba(0,0,0,.5),
+        0 0 0 0 rgba(255,138,42,0);
+    }
+    50% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,235,180,.55),
+        inset 0 -1px 0 rgba(0,0,0,.5),
+        0 0 42px 6px rgba(255,138,42,.65);
+    }
   }
 
   audio { width: 100%; margin-top: 12px; filter: invert(.92) hue-rotate(180deg); position: relative; z-index: 2; }
 
-  /* 3D visualizer fills the screen as the main view */
+  /* 3D visualizer fills the screen as ambient background */
   #viz3d {
     position: fixed; inset: 0; width: 100vw; height: 100vh;
     z-index: 0; pointer-events: none;
-    opacity: 0.85;
+    opacity: 0.42;          /* dimmed so UI reads cleaner — comes alive when playing */
     transition: opacity 1.2s ease;
+    filter: hue-rotate(-30deg) saturate(1.3);  /* warm/ember tint */
   }
-  #viz3d.active { opacity: 1; }
+  #viz3d.active { opacity: 0.95; }
   body { position: relative; min-height: 100vh; }
 
   /* Hide the old centered layout; we'll use sheets instead */
@@ -131,35 +179,37 @@
       0 14px 40px rgba(0,0,0,.5);
   }
   .dock button {
-    background: linear-gradient(180deg, rgba(233,210,139,.18) 0%, rgba(180,140,70,.10) 100%);
-    color: var(--gold);
-    border: 1px solid rgba(233,210,139,.28);
-    padding: 12px 22px; border-radius: 999px;
-    font-size: 13px; letter-spacing: .10em; font-weight: 600; cursor: pointer; font-family: inherit;
-    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(180deg, rgba(255,138,42,.14) 0%, rgba(140,60,20,.10) 100%);
+    color: var(--ember-soft);
+    border: 1px solid rgba(255,138,42,.28);
+    padding: 13px 24px; border-radius: 999px;
+    font-size: 13px; letter-spacing: .14em; font-weight: 700; cursor: pointer; font-family: inherit;
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 8px;
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.20),
-      inset 0 -1px 0 rgba(0,0,0,.30);
+      inset 0 1px 0 rgba(255,255,255,.18),
+      inset 0 -1px 0 rgba(0,0,0,.32);
     transition: transform .12s, box-shadow .25s, background .25s, border-color .25s;
   }
   .dock button:hover {
-    background: linear-gradient(180deg, rgba(233,210,139,.28) 0%, rgba(180,140,70,.18) 100%);
-    border-color: rgba(233,210,139,.55);
+    background: linear-gradient(180deg, rgba(255,138,42,.28) 0%, rgba(140,60,20,.16) 100%);
+    border-color: rgba(255,170,80,.7);
+    color: #fff;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.30),
+      inset 0 1px 0 rgba(255,235,180,.34),
       inset 0 -1px 0 rgba(0,0,0,.30),
-      0 0 24px rgba(233,210,139,.32);
+      0 0 28px rgba(255,138,42,.42);
     transform: translateY(-1px);
   }
   .dock button.active {
-    background: linear-gradient(180deg, rgba(233,210,139,.42) 0%, rgba(180,140,70,.28) 100%);
-    border-color: rgba(233,210,139,.7);
-    color: #fff5d6;
+    background: linear-gradient(180deg, rgba(255,138,42,.50) 0%, rgba(140,60,20,.34) 100%);
+    border-color: rgba(255,200,120,.85);
+    color: #fff;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.36),
+      inset 0 1px 0 rgba(255,235,180,.50),
       inset 0 -1px 0 rgba(0,0,0,.30),
-      0 0 30px rgba(233,210,139,.55);
+      0 0 36px rgba(255,138,42,.75);
   }
 
   /* Now-playing strip — top-right floating glass pill */
@@ -266,12 +316,777 @@
   details { margin-top: 10px; }
   details summary { color: var(--dim); font-size: 11px; cursor: pointer; }
   details[open] summary { color: #c9c9d2; }
+
+  /* ============================================================
+     FORGE OVERHAUL — dramatic ember/serif/flame pass.
+     This block intentionally lives at the end of <style> so it
+     wins specificity over earlier declarations.
+     ============================================================ */
+
+  html, body {
+    background:
+      radial-gradient(ellipse 1500px 900px at 50% 110%, rgba(255,110,20,.30) 0%, rgba(255,80,10,0) 60%),
+      radial-gradient(ellipse 900px 600px at 12% -10%, rgba(255,120,30,.18) 0%, rgba(255,80,10,0) 65%),
+      radial-gradient(ellipse at 50% 40%, #1a0e0a 0%, #0a0405 70%) !important;
+  }
+
+  /* Drifting ember particles — pseudo-element layer */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background-image:
+      radial-gradient(2px 2px at 12% 80%, rgba(255,170,90,.9), transparent 60%),
+      radial-gradient(1px 1px at 28% 92%, rgba(255,200,120,.7), transparent 60%),
+      radial-gradient(2px 2px at 47% 70%, rgba(255,140,60,.85), transparent 60%),
+      radial-gradient(1px 1px at 62% 88%, rgba(255,180,90,.7), transparent 60%),
+      radial-gradient(2px 2px at 79% 75%, rgba(255,150,70,.8), transparent 60%),
+      radial-gradient(1px 1px at 91% 95%, rgba(255,200,140,.6), transparent 60%);
+    animation: emberDrift 14s linear infinite;
+    opacity: .9;
+    mix-blend-mode: screen;
+  }
+  @keyframes emberDrift {
+    0%   { transform: translateY(0) translateX(0); opacity: .9; }
+    50%  { opacity: .55; }
+    100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
+  }
+
+  /* Bottom forge-glow band — like coals */
+  body::after {
+    content: ''; position: fixed; left: 0; right: 0; bottom: 0; height: 280px;
+    z-index: 1; pointer-events: none;
+    background:
+      radial-gradient(ellipse 800px 240px at 50% 100%, rgba(255,90,20,.40) 0%, rgba(255,60,10,0) 70%),
+      linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(80,20,0,.18) 100%);
+    filter: blur(2px);
+    animation: forgeFlicker 3.6s ease-in-out infinite alternate;
+  }
+  @keyframes forgeFlicker {
+    0%   { opacity: .85; }
+    50%  { opacity: 1.0; }
+    100% { opacity: .9; }
+  }
+
+  /* Header — serif wordmark, much larger */
+  header { padding: 26px 32px 14px !important; gap: 18px !important; align-items: center; }
+  header h1 {
+    font-family: 'Hoefler Text', 'Didot', 'Bodoni 72', Georgia, serif !important;
+    font-size: 38px !important;
+    font-weight: 700 !important;
+    letter-spacing: .26em !important;
+    background: linear-gradient(180deg, #fff2dc 0%, #ffb266 45%, #ff7a1a 70%, #b04408 100%) !important;
+    -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    text-shadow: 0 0 30px rgba(255,138,42,.55), 0 2px 0 rgba(0,0,0,.6) !important;
+    filter: drop-shadow(0 0 22px rgba(255,138,42,.4));
+  }
+  header .brand-mark {
+    width: 42px !important; height: 42px !important;
+    box-shadow:
+      0 0 26px rgba(255,138,42,.85),
+      0 0 60px rgba(255,90,20,.55),
+      inset 0 0 10px rgba(255,220,160,.85) !important;
+  }
+  header .sub {
+    font-family: 'Hoefler Text', 'Didot', Georgia, serif !important;
+    font-size: 12px !important;
+    font-style: italic !important;
+    color: rgba(255,210,150,.6) !important;
+    letter-spacing: .22em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* Cards — warm ember-black, not cool grey */
+  .card {
+    background: linear-gradient(180deg, rgba(40,22,14,.55) 0%, rgba(20,10,8,.72) 100%) !important;
+    border: 1px solid rgba(255,138,42,.22) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,200,140,.18),
+      inset 0 -1px 0 rgba(0,0,0,.5),
+      0 24px 80px rgba(0,0,0,.6),
+      0 0 60px rgba(255,90,20,.10) !important;
+  }
+
+  /* Dock — bigger, taller, more dramatic */
+  .dock {
+    bottom: 26px !important;
+    padding: 10px !important;
+    gap: 10px !important;
+    background: linear-gradient(180deg, rgba(60,30,18,.42) 0%, rgba(20,10,8,.60) 100%) !important;
+    border: 1px solid rgba(255,138,42,.30) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,200,140,.25),
+      inset 0 -1px 0 rgba(0,0,0,.4),
+      0 18px 50px rgba(0,0,0,.55),
+      0 0 60px rgba(255,90,20,.18) !important;
+  }
+  .dock button {
+    padding: 16px 32px !important;
+    font-size: 14px !important;
+    letter-spacing: .20em !important;
+    font-weight: 800 !important;
+  }
+
+  /* MAKE button — flame-textured, dominant CTA */
+  .makeBtn {
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.06) 0%, rgba(0,0,0,0) 50%),
+      linear-gradient(180deg, #6a3514 0%, #3a1c0c 55%, #1c0e06 100%) !important;
+    border: 1px solid rgba(255,170,80,.65) !important;
+    color: #fff3dc !important;
+    font-size: 18px !important;
+    letter-spacing: .28em !important;
+    padding: 20px !important;
+    border-radius: 14px !important;
+    text-shadow: 0 0 14px rgba(255,138,42,.6) !important;
+  }
+
+  /* Form fields — warm focus state */
+  input, select, textarea {
+    background: rgba(14,8,6,.60) !important;
+    border: 1px solid rgba(255,138,42,.18) !important;
+    color: #fde9d3 !important;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: rgba(255,138,42,.85) !important;
+    box-shadow: 0 0 0 3px rgba(255,138,42,.15), 0 0 18px rgba(255,138,42,.30) !important;
+    outline: none !important;
+  }
+
+  /* Field labels — switch to ember from gold */
+  .field-label { color: var(--ember-soft) !important; font-weight: 700 !important; }
+
+  /* Library song rows — warm bg */
+  .song {
+    background: linear-gradient(180deg, rgba(40,22,14,.50) 0%, rgba(18,10,8,.60) 100%) !important;
+    border: 1px solid rgba(255,138,42,.16) !important;
+  }
+  .song.playing {
+    border-color: rgba(255,170,80,.75) !important;
+    background: linear-gradient(180deg, rgba(60,30,12,.7) 0%, rgba(28,14,8,.7) 100%) !important;
+  }
+
+  /* Status dot pulses ember when ready */
+  .status.ok .dot { background: var(--ember) !important; box-shadow: 0 0 14px rgba(255,138,42,.85) !important; }
+
+  /* Tone the dim text a hint warmer */
+  .field-hint b, label { color: var(--ember-soft) !important; }
+
+  /* Now-playing strip — ember pill */
+  .nowplaying {
+    background: linear-gradient(180deg, rgba(60,30,18,.50) 0%, rgba(20,10,8,.65) 100%) !important;
+    border: 1px solid rgba(255,138,42,.30) !important;
+  }
+  .nowplaying .pulse {
+    background: var(--ember) !important;
+    box-shadow: 0 0 14px var(--ember) !important;
+  }
+
+  /* Make sheets sit above the ember overlay layers */
+  .sheet, .dock, header, .nowplaying { z-index: 6 !important; }
+  .sheet { z-index: 9 !important; }
+  .sheet-backdrop { z-index: 8 !important; }
+
+  /* ============================================================
+     LIQUID GLASS + 3D PASS — heavy frost, convex buttons,
+     specular highlights, stacked-depth shadows.
+     ============================================================ */
+
+  /* Cards — heavier frost, glassy bevel, depth shadow */
+  .card {
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.08) 0%, rgba(255,200,140,0) 18%),
+      linear-gradient(180deg, rgba(40,22,14,.42) 0%, rgba(20,10,8,.56) 100%) !important;
+    backdrop-filter: blur(40px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+    border: 1px solid rgba(255,200,140,.22) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.30),
+      inset 0 2px 0 rgba(255,200,140,.08),
+      inset 0 -1px 0 rgba(0,0,0,.55),
+      0 32px 90px rgba(0,0,0,.65),
+      0 0 60px rgba(255,90,20,.18) !important;
+    border-radius: 22px !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    /* glass top-light specular */
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 60%;
+    background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,0) 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .card > * { position: relative; z-index: 1; }
+
+  /* Dock pill — thick liquid glass capsule */
+  .dock {
+    backdrop-filter: blur(50px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.10) 0%, rgba(255,200,140,0) 24%),
+      linear-gradient(180deg, rgba(60,30,18,.40) 0%, rgba(20,10,8,.58) 100%) !important;
+    border: 1px solid rgba(255,200,140,.32) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.36),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 22px 60px rgba(0,0,0,.55),
+      0 0 70px rgba(255,90,20,.22) !important;
+  }
+
+  /* 3D dock buttons — convex glass pebble */
+  .dock button {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,235,200,.32) 0%, rgba(255,235,200,0) 60%),
+      linear-gradient(180deg, rgba(255,138,42,.32) 0%, rgba(180,80,30,.20) 50%, rgba(80,30,12,.30) 100%) !important;
+    border: 1px solid rgba(255,200,140,.45) !important;
+    color: #fff3dc !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -2px 0 rgba(0,0,0,.42),
+      inset 0 0 0 1px rgba(255,138,42,.18),
+      0 6px 14px rgba(0,0,0,.45),
+      0 0 18px rgba(255,138,42,.28) !important;
+    transition: transform .12s, box-shadow .25s, background .25s !important;
+  }
+  .dock button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -2px 0 rgba(0,0,0,.42),
+      inset 0 0 0 1px rgba(255,170,80,.32),
+      0 12px 24px rgba(0,0,0,.55),
+      0 0 36px rgba(255,138,42,.55) !important;
+  }
+  .dock button:active {
+    transform: translateY(0) !important;
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,.55),
+      inset 0 -1px 0 rgba(255,200,140,.18),
+      0 2px 6px rgba(0,0,0,.4) !important;
+  }
+  .dock button.active {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,250,220,.50) 0%, rgba(255,250,220,0) 65%),
+      linear-gradient(180deg, rgba(255,170,80,.65) 0%, rgba(220,110,40,.50) 50%, rgba(140,60,20,.55) 100%) !important;
+    border-color: rgba(255,230,180,.85) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.65),
+      inset 0 -2px 0 rgba(0,0,0,.4),
+      0 8px 18px rgba(0,0,0,.5),
+      0 0 48px rgba(255,138,42,.85) !important;
+  }
+
+  /* MAKE button — fully 3D molten metal pebble */
+  .makeBtn {
+    background:
+      radial-gradient(ellipse 100% 50% at 50% 0%, rgba(255,235,200,.40) 0%, rgba(255,235,200,0) 60%),
+      linear-gradient(180deg, #c25a18 0%, #8a3c10 35%, #4a1f0a 75%, #1c0e06 100%) !important;
+    border: 1px solid rgba(255,210,150,.7) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.50),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      inset 0 0 0 1px rgba(255,138,42,.25),
+      0 10px 28px rgba(0,0,0,.55),
+      0 0 42px rgba(255,138,42,.45) !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 18px rgba(255,200,140,.7) !important;
+    transition: transform .12s, box-shadow .25s !important;
+    position: relative;
+    overflow: hidden;
+  }
+  .makeBtn::before {
+    /* glass refraction sweep */
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,235,200,.18) 50%, rgba(255,255,255,0) 70%);
+    transform: translateX(-100%);
+    transition: transform .9s ease;
+    pointer-events: none;
+  }
+  .makeBtn:hover::before { transform: translateX(100%); }
+  .makeBtn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.60),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      inset 0 0 0 1px rgba(255,170,80,.35),
+      0 16px 36px rgba(0,0,0,.6),
+      0 0 60px rgba(255,138,42,.70) !important;
+  }
+  .makeBtn:active {
+    transform: translateY(0) !important;
+    box-shadow:
+      inset 0 3px 8px rgba(0,0,0,.55),
+      inset 0 -1px 0 rgba(255,200,140,.20),
+      0 4px 10px rgba(0,0,0,.4) !important;
+  }
+
+  /* Inputs — frosted glass tiles */
+  input, select, textarea {
+    backdrop-filter: blur(14px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.04) 0%, rgba(255,200,140,0) 18%),
+      rgba(14,8,6,.55) !important;
+    border: 1px solid rgba(255,200,140,.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.10),
+      inset 0 -1px 0 rgba(0,0,0,.40),
+      0 4px 10px rgba(0,0,0,.25) !important;
+    border-radius: 10px !important;
+  }
+
+  /* Now-playing pill — glass orb */
+  .nowplaying {
+    backdrop-filter: blur(40px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.10) 0%, rgba(255,200,140,0) 30%),
+      linear-gradient(180deg, rgba(60,30,18,.40) 0%, rgba(20,10,8,.58) 100%) !important;
+    border: 1px solid rgba(255,200,140,.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.30),
+      inset 0 -1px 0 rgba(0,0,0,.40),
+      0 10px 26px rgba(0,0,0,.45),
+      0 0 30px rgba(255,138,42,.22) !important;
+  }
+
+  /* Library song rows — small glass tiles */
+  .song {
+    backdrop-filter: blur(14px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+    border-radius: 12px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.10),
+      inset 0 -1px 0 rgba(0,0,0,.35),
+      0 6px 14px rgba(0,0,0,.30) !important;
+  }
+
+  /* Brand mark — give it more 3D specular */
+  header .brand-mark {
+    background:
+      radial-gradient(circle at 25% 22%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 22%),
+      radial-gradient(circle at 30% 30%, #ffe1b8 0%, #ff8a2a 32%, #c2520c 65%, #2a0e02 100%) !important;
+  }
+
+  /* Status dot — glass orb */
+  .status .dot {
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%),
+      var(--ember) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.5),
+      0 0 14px rgba(255,138,42,.85) !important;
+  }
+
+  /* ============================================================
+     HERO CTA — center-stage "Forge a song" pebble.
+     First thing a new user lands their eye on.
+     ============================================================ */
+  .hero-cta {
+    position: fixed; inset: 0; z-index: 4;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; pointer-events: none;
+    padding-bottom: 110px; /* leaves room for the dock */
+  }
+  .hero-cta.hide { opacity: 0; transform: scale(.96); transition: opacity .35s ease, transform .35s ease; pointer-events: none !important; }
+  .hero-btn {
+    pointer-events: auto;
+    position: relative; overflow: hidden;
+    padding: 28px 56px;
+    border-radius: 22px;
+    border: 1.5px solid rgba(255,210,150,.75);
+    background:
+      radial-gradient(ellipse 100% 60% at 50% -10%, rgba(255,235,200,.55) 0%, rgba(255,235,200,0) 65%),
+      linear-gradient(180deg, #d8651c 0%, #a44814 35%, #5a2008 75%, #1c0e06 100%);
+    color: #fff8e6; font-family: inherit;
+    font-size: 28px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase;
+    text-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 22px rgba(255,180,90,.6);
+    cursor: pointer;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      0 16px 42px rgba(0,0,0,.55),
+      0 0 60px rgba(255,138,42,.55);
+    transition: transform .15s, box-shadow .25s, border-color .25s;
+    animation: heroPulse 2.4s ease-in-out infinite;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    backdrop-filter: blur(8px) saturate(160%); -webkit-backdrop-filter: blur(8px) saturate(160%);
+  }
+  .hero-btn-label { display:block; }
+  .hero-btn-sub {
+    font-family: 'Hoefler Text', 'Didot', Georgia, serif;
+    font-size: 12px; font-weight: 400; font-style: italic;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: rgba(255,210,150,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .hero-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    border-color: rgba(255,235,180,.9);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.65),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      0 22px 56px rgba(0,0,0,.6),
+      0 0 80px rgba(255,138,42,.85);
+  }
+  .hero-btn:active { transform: translateY(0) scale(1.0); }
+  @keyframes heroPulse {
+    0%,100% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        inset 0 -3px 0 rgba(0,0,0,.50),
+        0 16px 42px rgba(0,0,0,.55),
+        0 0 50px rgba(255,138,42,.45);
+    }
+    50% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.65),
+        inset 0 -3px 0 rgba(0,0,0,.50),
+        0 18px 50px rgba(0,0,0,.6),
+        0 0 90px rgba(255,138,42,.85);
+    }
+  }
+  /* Refraction sweep */
+  .hero-btn-glow {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,235,200,.22) 50%, rgba(255,255,255,0) 70%);
+    transform: translateX(-120%);
+    animation: heroSweep 4.5s ease-in-out infinite;
+  }
+  @keyframes heroSweep {
+    0%, 60% { transform: translateX(-120%); }
+    80%     { transform: translateX(120%); }
+    100%    { transform: translateX(120%); }
+  }
+  .hero-hint {
+    pointer-events: none;
+    color: rgba(255,210,150,.55);
+    font-family: 'Hoefler Text', 'Didot', Georgia, serif;
+    font-style: italic; font-size: 13px; letter-spacing: .14em;
+    animation: hintFade 2.6s ease-in-out infinite;
+  }
+  @keyframes hintFade {
+    0%,100% { opacity: .4; transform: translateY(0); }
+    50%     { opacity: .85; transform: translateY(3px); }
+  }
+
+  /* Three-color drift: teal-green → purple → yellow → teal-green.
+     Slower than the rainbow pass; lands on each scene long enough to read. */
+  html { animation: triColorDrift 60s ease-in-out infinite; }
+  body::before { animation: emberDrift 14s linear infinite, triColorDrift 60s ease-in-out infinite; }
+  body::after  { animation: forgeFlicker 3.6s ease-in-out infinite alternate, triColorDrift 60s ease-in-out infinite; }
+
+  @keyframes triColorDrift {
+    0%   { filter: hue-rotate(180deg) saturate(1.05); }  /* teal-green */
+    33%  { filter: hue-rotate(280deg) saturate(1.10); }  /* purple */
+    66%  { filter: hue-rotate(60deg)  saturate(1.05); }  /* yellow */
+    100% { filter: hue-rotate(180deg) saturate(1.05); }  /* teal-green */
+  }
+
+  /* Anchor brand identity — these elements should NOT inherit hue cycling */
+  header h1, header .brand-mark, header .sub,
+  .makeBtn, .hero-btn, .hero-btn-sub, .hero-hint,
+  .dock button.active {
+    /* Reset hue effects from body */
+    filter: none;
+  }
+
+  /* ============================================================
+     ORPHAN STATUS CARD — direct child of body. Hidden by default.
+     Shows only when a real job is forging — as a small floating
+     pill near the top, well clear of the wordmark and the dock.
+     ============================================================ */
+  body > div.card {
+    display: none !important;
+  }
+  body.has-job > div.card {
+    display: inline-flex !important;
+    align-items: center !important;
+    position: fixed !important;
+    top: 86px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    max-width: 320px !important;
+    z-index: 11 !important;
+    margin: 0 !important;
+    padding: 7px 18px 7px 14px !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
+    background:
+      linear-gradient(180deg, rgba(255,200,140,.14) 0%, rgba(255,200,140,0) 30%),
+      linear-gradient(180deg, rgba(60,30,18,.55) 0%, rgba(20,10,8,.70) 100%) !important;
+    border: 1px solid rgba(255,200,140,.32) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.30),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 8px 24px rgba(0,0,0,.45),
+      0 0 28px rgba(255,138,42,.30) !important;
+    animation: jobPillIn 0.45s cubic-bezier(.22, 1, .36, 1) both, jobPillBreathe 3s ease-in-out 0.45s infinite !important;
+  }
+  @keyframes jobPillIn {
+    from { transform: translateX(-50%) translateY(-12px); opacity: 0; }
+    to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
+  }
+  @keyframes jobPillBreathe {
+    0%,100% { box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.30),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 8px 24px rgba(0,0,0,.45),
+      0 0 24px rgba(255,138,42,.28); }
+    50%     { box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.40),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 8px 24px rgba(0,0,0,.45),
+      0 0 38px rgba(255,138,42,.55); }
+  }
+  body.has-job > div.card #status {
+    font-size: 12px !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    min-height: 0 !important;
+    color: var(--ember-soft) !important;
+    letter-spacing: .04em !important;
+    font-weight: 600 !important;
+  }
+  body.has-job > div.card #status .line { gap: 10px !important; }
+  body.has-job > div.card #status .dot {
+    width: 8px !important; height: 8px !important;
+  }
+  body.has-job > div.card #status .heartbeat { display: none !important; }
+  body.has-job > div.card #genBlock,
+  body.has-job > div.card #dlBlock,
+  body.has-job > div.card #player,
+  body.has-job > div.card #usedLyrics { display: none !important; }
+
+  /* ============================================================
+     OFF-ORANGE PALETTE OVERRIDE — gold/champagne brand,
+     purple-with-gold-edge CTAs. Anchored elements stop reading
+     as forge orange; the cycling background carries the
+     teal/purple/yellow scenery.
+     ============================================================ */
+
+  :root {
+    --gold:#f0d96b !important;
+    --gold2:#c9a536 !important;
+    --ember:#e8c64f !important;
+    --ember-soft:#fff7d4 !important;
+  }
+
+  header h1 {
+    background: linear-gradient(180deg, #fff7d4 0%, #f0d96b 45%, #c9a536 70%, #6f5a14 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: 0 0 26px rgba(240,217,107,.45), 0 2px 0 rgba(0,0,0,.6) !important;
+    filter: drop-shadow(0 0 18px rgba(200,175,80,.35)) !important;
+  }
+  header .brand-mark {
+    background:
+      radial-gradient(circle at 25% 22%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 22%),
+      radial-gradient(circle at 30% 30%, #fff7d4 0%, #f0d96b 35%, #b8951f 70%, #2a2010 100%) !important;
+    box-shadow:
+      0 0 22px rgba(240,217,107,.65),
+      0 0 50px rgba(200,175,80,.45),
+      inset 0 0 9px rgba(255,247,212,.85) !important;
+  }
+  header .sub { color: rgba(240,217,107,.65) !important; }
+
+  .hero-btn {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% -10%, rgba(255,247,212,.45) 0%, rgba(255,247,212,0) 65%),
+      linear-gradient(180deg, #5a3a8a 0%, #3a2470 35%, #1e1340 75%, #0c0820 100%) !important;
+    border: 1.5px solid rgba(240,217,107,.85) !important;
+    color: #fff7d4 !important;
+    text-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 18px rgba(240,217,107,.6) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      0 16px 42px rgba(0,0,0,.55),
+      0 0 50px rgba(140,100,200,.45),
+      0 0 80px rgba(240,217,107,.20) !important;
+  }
+  .hero-btn-sub { color: rgba(240,217,107,.85) !important; }
+  .hero-btn:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.65),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      0 22px 56px rgba(0,0,0,.6),
+      0 0 70px rgba(140,100,200,.65),
+      0 0 110px rgba(240,217,107,.40) !important;
+  }
+  @keyframes heroPulse {
+    0%,100% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        inset 0 -3px 0 rgba(0,0,0,.50),
+        0 16px 42px rgba(0,0,0,.55),
+        0 0 50px rgba(140,100,200,.40);
+    }
+    50% {
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.65),
+        inset 0 -3px 0 rgba(0,0,0,.50),
+        0 18px 50px rgba(0,0,0,.6),
+        0 0 90px rgba(140,100,200,.75);
+    }
+  }
+  .hero-hint { color: rgba(240,217,107,.55) !important; }
+
+  .makeBtn {
+    background:
+      radial-gradient(ellipse 100% 50% at 50% 0%, rgba(255,247,212,.34) 0%, rgba(255,247,212,0) 60%),
+      linear-gradient(180deg, #4a2c80 0%, #2e1b58 35%, #18102e 75%, #08051a 100%) !important;
+    border: 1px solid rgba(240,217,107,.7) !important;
+    color: #fff7d4 !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6), 0 0 18px rgba(240,217,107,.5) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.50),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      inset 0 0 0 1px rgba(240,217,107,.20),
+      0 10px 28px rgba(0,0,0,.55),
+      0 0 36px rgba(140,100,200,.40) !important;
+  }
+  .makeBtn:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.60),
+      inset 0 -3px 0 rgba(0,0,0,.50),
+      inset 0 0 0 1px rgba(240,217,107,.35),
+      0 16px 36px rgba(0,0,0,.6),
+      0 0 60px rgba(140,100,200,.65) !important;
+  }
+
+  /* Dock buttons — gold-edge glass over deep teal-purple base */
+  .dock button {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,247,212,.30) 0%, rgba(255,247,212,0) 60%),
+      linear-gradient(180deg, rgba(80,55,140,.30) 0%, rgba(40,25,80,.20) 50%, rgba(15,10,30,.30) 100%) !important;
+    border: 1px solid rgba(240,217,107,.45) !important;
+    color: #fff7d4 !important;
+  }
+  .dock button:hover {
+    border-color: rgba(240,217,107,.75) !important;
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,247,212,.40) 0%, rgba(255,247,212,0) 60%),
+      linear-gradient(180deg, rgba(120,80,180,.40) 0%, rgba(60,40,110,.28) 50%, rgba(20,15,40,.35) 100%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -2px 0 rgba(0,0,0,.42),
+      inset 0 0 0 1px rgba(240,217,107,.32),
+      0 12px 24px rgba(0,0,0,.55),
+      0 0 36px rgba(140,100,200,.55) !important;
+  }
+  .dock button.active {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,250,220,.55) 0%, rgba(255,250,220,0) 65%),
+      linear-gradient(180deg, rgba(170,130,230,.65) 0%, rgba(110,75,180,.50) 50%, rgba(50,35,100,.55) 100%) !important;
+    border-color: rgba(255,247,212,.85) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.65),
+      inset 0 -2px 0 rgba(0,0,0,.4),
+      0 8px 18px rgba(0,0,0,.5),
+      0 0 48px rgba(170,130,230,.85) !important;
+  }
+  .dock {
+    background:
+      linear-gradient(180deg, rgba(255,247,212,.10) 0%, rgba(255,247,212,0) 24%),
+      linear-gradient(180deg, rgba(60,40,110,.40) 0%, rgba(15,10,30,.58) 100%) !important;
+    border: 1px solid rgba(240,217,107,.32) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,235,200,.36),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 22px 60px rgba(0,0,0,.55),
+      0 0 70px rgba(140,100,200,.30) !important;
+  }
+
+  /* Cards — purple-tinted dark glass */
+  .card {
+    background:
+      linear-gradient(180deg, rgba(240,217,107,.06) 0%, rgba(240,217,107,0) 18%),
+      linear-gradient(180deg, rgba(40,28,70,.45) 0%, rgba(15,10,30,.60) 100%) !important;
+    border: 1px solid rgba(240,217,107,.22) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,247,212,.30),
+      inset 0 -1px 0 rgba(0,0,0,.55),
+      0 32px 90px rgba(0,0,0,.65),
+      0 0 60px rgba(140,100,200,.20) !important;
+  }
+
+  /* Inputs — focus ring gold */
+  input:focus, select:focus, textarea:focus {
+    border-color: rgba(240,217,107,.85) !important;
+    box-shadow:
+      0 0 0 3px rgba(240,217,107,.18),
+      0 0 18px rgba(140,100,200,.35) !important;
+  }
+
+  /* Status pill — same triad, but yellow glow */
+  body.has-job > div.card {
+    background:
+      linear-gradient(180deg, rgba(240,217,107,.18) 0%, rgba(240,217,107,0) 30%),
+      linear-gradient(180deg, rgba(60,40,110,.55) 0%, rgba(15,10,30,.70) 100%) !important;
+    border: 1px solid rgba(240,217,107,.40) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,247,212,.40),
+      inset 0 -1px 0 rgba(0,0,0,.45),
+      0 8px 24px rgba(0,0,0,.45),
+      0 0 28px rgba(240,217,107,.40) !important;
+  }
+  .status .dot {
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%),
+      var(--ember) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.5),
+      0 0 14px rgba(240,217,107,.85) !important;
+  }
+  .status.ok .dot {
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%), #f0d96b !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 14px rgba(240,217,107,.85) !important;
+  }
+
+  /* ============================================================
+     FLOATING MINI-PLAYER — pulled out of the orphan status card.
+     Pinned above the dock; always reachable to play/pause/scrub.
+     ============================================================ */
+  audio#player {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: 108px !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 64px) !important;
+    max-width: 680px !important;
+    z-index: 12 !important;
+    border-radius: 999px !important;
+    box-shadow:
+      0 12px 40px rgba(0,0,0,.6),
+      0 0 40px rgba(170,130,230,.40),
+      inset 0 1px 0 rgba(255,247,212,.20) !important;
+    background: linear-gradient(180deg, rgba(60,40,110,.55) 0%, rgba(15,10,30,.70) 100%) !important;
+    backdrop-filter: blur(20px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  }
+  /* Hide it when no audio is loaded yet OR when the HTML hidden attr is on */
+  audio#player[hidden]:not([src]) { display: none !important; }
+  audio#player:not([src]) { display: none !important; }
+
+  /* Background base — replace ember-warm radials with cool teal/purple */
+  html, body {
+    background:
+      radial-gradient(ellipse 1500px 900px at 50% 110%, rgba(60,180,170,.22) 0%, rgba(60,180,170,0) 60%),
+      radial-gradient(ellipse 900px 600px at 12% -10%, rgba(140,90,200,.20) 0%, rgba(140,90,200,0) 65%),
+      radial-gradient(ellipse at 50% 40%, #14102a 0%, #050410 70%) !important;
+  }
+  body::after {
+    background:
+      radial-gradient(ellipse 800px 240px at 50% 100%, rgba(70,200,180,.30) 0%, rgba(70,200,180,0) 70%),
+      linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(20,15,50,.20) 100%) !important;
+  }
 </style>
 </head>
 <body>
   <header>
-    <h1>🎙 SONG FORGE</h1>
-    <span class="sub">— local · in your voice · any style</span>
+    <span class="brand-mark" aria-hidden="true"></span>
+    <h1>SONG FORGE</h1>
+    <span class="sub">Local · In Your Voice · Any Style</span>
   </header>
 
   <!-- Now-playing strip (top right) -->
@@ -280,11 +1095,20 @@
     <span id="nowplayingTitle">—</span>
   </div>
 
+  <!-- Hero CTA — first-time user lands their eye here -->
+  <div id="heroCTA" class="hero-cta">
+    <button id="heroMakeBtn" class="hero-btn">
+      <span class="hero-btn-glow"></span>
+      <span class="hero-btn-label">FORGE A SONG</span>
+      <span class="hero-btn-sub">Local · in your voice · any style</span>
+    </button>
+    <div class="hero-hint">↓  or use the dock below</div>
+  </div>
+
   <!-- Bottom dock — primary actions -->
   <div class="dock">
     <button id="dockMake">🎵 MAKE</button>
     <button id="dockLibrary">📚 LIBRARY</button>
-    <button id="dockBanned">🚫 BANNED</button>
   </div>
 
   <!-- Modal backdrop shared by all sheets -->
@@ -313,8 +1137,8 @@
           </div>
           <select id="stylePreset" style="width:100%;margin-bottom:6px;">
             <option value="">— genre preset —</option>
-            <option value="pop song with catchy hook, bright synths, four-on-the-floor drums, polished modern mix, 110 bpm">pop</option>
-            <option value="rock band with electric guitars, driving drums, bass, energetic male vocals, 120 bpm">rock</option>
+            <option value="Egyptian classical with oud, ney flute, qanun zither, darbuka and riq frame drums, swelling string section, Arabic male vocalist with maqam-based melismatic phrasing in the tradition of Umm Kulthum and Mohamed Abdel Wahab, 80 bpm">world · Egyptian classical</option>
+            <option value="Nigerian Afrobeat with rolling drum kit, congas and shekere percussion, electric bass, baritone saxophone and trumpet horn section, Black Nigerian male vocalist with call-and-response chants in the tradition of Fela Kuti and Tony Allen, 110 bpm">world · Afrobeat (West African)</option>
             <option value="gritty east coast boom-bap hip-hop with hard-hitting kick and snare, dusty sampled soul loop, sub bass, scratched vinyl, Black male rapper from Brooklyn/Queens with raw aggressive flow and gravelly low voice, classic 90s underground hip-hop production in the tradition of Wu-Tang, Mobb Deep, Nas, 90 bpm">hip-hop · boom-bap (gritty)</option>
             <option value="modern southern trap hip-hop with hard-hitting 808 sub bass, rapid-fire trap hi-hats and triplet snares, dark minor-key piano, Black male Atlanta rapper with deep Southern drawl and aggressive delivery, autotuned ad-libs, street production in the tradition of Future, 21 Savage, Young Thug, 140 bpm">hip-hop · trap (hard)</option>
             <option value="soulful R&amp;B with electric piano, warm bass, smooth groove, Black male vocalist with rich gospel-trained voice, melismatic runs, blue notes, falsetto flourishes, vocal layering, 90s neo-soul production in the tradition of D'Angelo, Maxwell, Bilal, 80 bpm">r&amp;b · neo-soul</option>
@@ -323,11 +1147,11 @@
             <option value="traditional Black American gospel with Hammond B3 organ, piano, bass, drums, lead Black gospel vocalist with powerful melismatic delivery and church-trained voice, full Black church choir on the chorus, call-and-response, hand-claps, soulful build-up, in the tradition of the Mississippi Mass Choir, Hezekiah Walker, Kirk Franklin, 100 bpm">gospel · Black church</option>
             <option value="electronic dance with pulsing synths, four-on-the-floor kick, sidechained bass, big drop, 128 bpm">electronic / EDM</option>
             <option value="house track with classic disco bassline, filtered piano stabs, four-on-the-floor, soulful vocal samples, 122 bpm">house</option>
-            <option value="techno track with relentless kick, hypnotic synth lines, dark atmosphere, minimal vocals, 130 bpm">techno</option>
+            <option value="Tuareg desert blues with hypnotic looping electric guitar, hand-clap rhythms, calabash percussion, group call-and-response male vocals in Tamasheq, in the tradition of Tinariwen and Bombino, 95 bpm">world · Tuareg desert blues</option>
             <option value="jazz combo with upright bass, brushed drums, piano comping, smooth saxophone, 95 bpm">jazz</option>
             <option value="blues song with bent electric guitar, walking bass, shuffle drums, gritty male vocals, 90 bpm">blues</option>
-            <option value="folk song with fingerpicked acoustic guitar, harmonica, intimate male vocals, 95 bpm">folk</option>
-            <option value="metal track with distorted guitars, double-kick drums, heavy bass, aggressive male vocals, 140 bpm">metal</option>
+            <option value="Andean folk with quena and pan flute lead, charango, bombo legüero drum, soft acoustic guitar, gentle male vocalist in Spanish, in the tradition of Inti-Illimani and Los Calchakis, 85 bpm">world · Andean pan flute</option>
+            <option value="Trinidadian calypso with steel pan lead melody, syncopated congas, Latin percussion, walking upright bass, warm Caribbean male vocalist with playful storytelling delivery, 100 bpm">world · steel pan calypso</option>
             <option value="punk rock track with fast power chords, pounding drums, raw male vocals, 160 bpm">punk</option>
             <option value="lofi hip-hop with mellow rhodes, vinyl crackle, soft drums, dreamy chopped samples, 75 bpm">lofi</option>
             <option value="ambient piece with evolving synth pads, no drums, dreamy texture, soft reverb, 60 bpm">ambient</option>
@@ -551,7 +1375,6 @@
   const dockBtns = {
     make:    $('dockMake'),
     library: $('dockLibrary'),
-    banned:  $('dockBanned'),
   };
   const backdrop = $('sheetBackdrop');
 
@@ -559,26 +1382,29 @@
     Object.entries(sheets).forEach(([k, el]) => el.classList.toggle('show', k === name));
     Object.entries(dockBtns).forEach(([k, b]) => b && b.classList.toggle('active', k === name));
     backdrop.classList.add('show');
+    document.body.classList.toggle('make-open', name === 'make');
     if (name === 'library') refreshRecent();
   }
   function closeSheets() {
     Object.values(sheets).forEach(el => el.classList.remove('show'));
     Object.values(dockBtns).forEach(b => b && b.classList.remove('active'));
     backdrop.classList.remove('show');
+    document.body.classList.remove('make-open');
   }
   dockBtns.make.onclick    = () => openSheet('make');
   dockBtns.library.onclick = () => openSheet('library');
-  // BANNED dock: opens MAKE sheet and scrolls to + opens the banned-phrases <details>
-  dockBtns.banned.onclick  = () => {
-    openSheet('make');
-    setTimeout(() => {
-      const det = document.querySelector('#makeSheet details');
-      if (det) {
-        det.open = true;
-        det.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
-  };
+
+  // Hero CTA — center "FORGE A SONG" button. Opens MAKE and hides itself.
+  const heroCTA = document.getElementById('heroCTA');
+  const heroBtn = document.getElementById('heroMakeBtn');
+  if (heroBtn) {
+    heroBtn.onclick = () => {
+      heroCTA.classList.add('hide');
+      openSheet('make');
+    };
+  }
+  // Re-show hero only when sheets close AND the library is empty (true first-run feel).
+  // For ongoing sessions we keep it hidden once dismissed.
   backdrop.onclick = closeSheets;
   document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheets);
 
@@ -691,17 +1517,20 @@
         const eta = (dl.headline && dl.headline.eta) ? ` · ETA ${dl.headline.eta}` : '';
         setStatus(`stage 2/4 · downloading model weights · ${dl.overall_pct}%${eta} · ${elapsed}`, 'warn');
       }
-      else if (phase === 'loading') setStatus(`stage 3/4 · loading model into memory · ${elapsed}`, 'warn');
+      else if (phase === 'loading') setStatus(`Warming up the forge · ${elapsed}`, 'warn');
       else if (phase === 'ready') {
         if (j.jobs_running) {
-          setStatus(`generating · ${j.jobs_running} job(s) running`, 'ok');
+          setStatus(`Forging your song…`, 'ok');
           make.classList.remove('ready');
         } else {
-          setStatus('READY — click MAKE ME A SONG below ↓', 'ok');
+          setStatus('Ready — strike the anvil', 'ok');
           make.classList.add('ready');
         }
       }
-      else                          setStatus(`stage 1/4 · ACE-Step booting · ${elapsed}`, 'warn');
+      else                          setStatus(`Lighting the forge · ${elapsed}`, 'warn');
+
+      // Toggle floating job pill — tiny indicator, only while a song is generating.
+      document.body.classList.toggle('has-job', !!j.jobs_running);
 
       // While booting/loading there's no real percent — show animated stripes
       // so the user sees motion. Hide the gen bar entirely once the system is
@@ -918,6 +1747,80 @@
     }
   };
   loadBanned();
+
+  // ============================================================
+  // SELF-RUNNING DEMO — `?demo=1` triggers a scripted UI sequence
+  // for screen-recording. ~48s total. Pure setTimeout — runs in
+  // page event loop, doesn't block.
+  // ============================================================
+  if (new URLSearchParams(location.search).get('demo') === '1') {
+    setTimeout(() => {
+      const sel = id => document.getElementById(id);
+      function selectByText(id, text) {
+        const s = sel(id); if (!s) return;
+        for (let i = 0; i < s.options.length; i++) {
+          if (s.options[i].text.toLowerCase().includes(text.toLowerCase())) {
+            s.selectedIndex = i;
+            s.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+          }
+        }
+      }
+      function setVal(id, v) {
+        const e = sel(id); if (!e) return;
+        e.value = v;
+        e.dispatchEvent(new Event('input', { bubbles: true }));
+        e.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      function clk(id) { const e = sel(id); if (e) e.click(); }
+      function scrollTo(id) { const e = sel(id); if (e) e.scrollIntoView({ behavior:'smooth', block:'center' }); }
+      function close() { const bd = sel('sheetBackdrop'); if (bd) bd.click(); }
+
+      // Reset to clean home
+      close();
+      sel('heroCTA')?.classList.remove('hide');
+      document.body.classList.remove('make-open');
+      ['title','style','lyrics','soundsLikeInput','extraInstrumentsInput','bpm'].forEach(id => {
+        const e = sel(id); if (e) e.value = '';
+      });
+      ['stylePreset','vocalPreset','eraPreset','moodPreset','vocalCharPreset','tempoPreset'].forEach(id => {
+        const e = sel(id); if (e) e.selectedIndex = 0;
+      });
+      document.querySelectorAll('details').forEach(d => d.open = false);
+
+      const queue = [
+        [6500,  () => sel('heroMakeBtn').click()],
+        [7800,  () => setVal('title', "Humboldt Cruise")],
+        [8200,  () => selectByText('stylePreset', 'neo-soul')],
+        [11000, () => selectByText('vocalPreset', 'male lead with female backups')],
+        [14800, () => {
+          const det = document.querySelector('#makeSheet details');
+          if (det) { det.open = true; det.scrollIntoView({ behavior:'smooth', block:'center' }); }
+        }],
+        [15800, () => selectByText('eraPreset', '1990s')],
+        [16500, () => selectByText('moodPreset', 'uplifting')],
+        [17400, () => selectByText('vocalCharPreset', 'smooth')],
+        [18300, () => selectByText('tempoPreset', 'mid-tempo')],
+        [19800, () => setVal('soundsLikeInput', "D'Angelo, Stevie Wonder, Bilal")],
+        [21400, () => setVal('extraInstrumentsInput', "saxophone solo, hand claps")],
+        [22400, () => clk('applyFineTuneBtn')],
+        [23500, () => scrollTo('lyrics')],
+        [24500, () => clk('randomLyricsBtn')],
+        [27500, () => scrollTo('makeBtn')],
+        [33000, () => close()],
+        [34000, () => clk('dockLibrary')],
+        [37500, () => {
+          const row = document.querySelector('#recentList .song');
+          if (row) row.scrollIntoView({ behavior:'smooth', block:'center' });
+        }],
+        [41500, () => close()],
+        [42000, () => sel('heroCTA')?.classList.remove('hide')],
+      ];
+      queue.forEach(([t, fn]) => setTimeout(fn, t));
+      window.__demoStartedAt = Date.now();
+    }, 200);
+  }
+
 
   $('clearAllBtn').onclick = async () => {
     if (!confirm('Delete EVERY song in the library? This cannot be undone.')) return;

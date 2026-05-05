@@ -16,3 +16,12 @@ venv/
 
 # logs
 *.log
+
+# narration / voice tests / curated keepers (big WAVs, not for repo)
+narration/
+keepers/
+voice_swap_test/
+
+# editor backups
+*.bak
+*.bak.*
