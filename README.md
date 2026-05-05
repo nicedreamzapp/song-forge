@@ -1,68 +1,88 @@
 # 🎙 Song Forge
 
-Local AI music generator. Type a description, get a song. Runs entirely on your Mac — no cloud APIs.
+**Type a vibe. Get a whole song. On your own Mac. No cloud, no subscription, no API keys.**
 
-## What it does
+You write something like *"sunset reggae with steel pan and a male vocalist who sounds like Burning Spear, 78 bpm"* — Song Forge writes lyrics for you (or you can write your own), an AI composes the music and the vocals, and a couple minutes later you've got a finished track in your Library. Drop your own voice sample in and it'll re-sing the song *in your voice* — or your kid's, or anyone you've recorded.
 
-- **ACE-Step** generates the song (music + vocals) from a style description
-- **Gemma 4 31B** (via LM Studio) writes lyrics in the appropriate genre
-- **demucs + seed-vc + ffmpeg** voice-swap any song to a cloned voice (yours, your kid's, anyone's sample)
-- Outputs wav + auto-tagged mp3 ready to drop into Music.app
+Everything happens on your Mac. Nothing ever leaves it.
 
-## Stack
+---
 
-| Component | Role | Where it runs |
-|---|---|---|
-| `forge_server.py` | UI + orchestrator | port 8767 |
-| ACE-Step 1.5 | Text-to-music model (MLX backend) | port 8001 |
-| LM Studio + Gemma 4 31B | Lyric writer | port 1234 |
-| demucs (`htdemucs`) | Vocal/instrumental split | invoked from worker |
-| seed-vc (Plachta) | Zero-shot voice conversion | invoked from worker |
-| ffmpeg | Audio mix | invoked from worker |
+## 🎬 What it actually does
 
-## Hardware
+- **You describe a song** — pick a genre preset, mix in mood / era / tempo / reference artists, fine-tune the vocal arrangement.
+- **The AI writes the lyrics** for you in the right style (or paste your own — `[verse]`/`[chorus]` tags work).
+- **It generates the song** — music *and* vocals — in about **15 seconds** on a beefy Mac (a couple minutes on a normal one).
+- **Library** keeps every track you've made. Play, rename, save the WAV, delete.
+- **Voice swap** any track into a cloned voice. Drop a 10-second sample of someone speaking into the voices folder, and Song Forge will re-sing the whole song in their voice. There's even a "group of kids" effect that layers 4 pitched copies for a children's choir feel.
 
-Built on Apple Silicon (M5 Max, 128 GB unified memory). Each song generation: ~15s on M5. Voice swap: ~1 min total.
+---
 
-## Layout
+## 💻 What kind of computer do I need?
 
+**Apple Silicon Mac.** Sorry Intel folks — the music model uses Apple's MLX framework, which needs an M-series chip.
+
+| Your Mac | What you'll get |
+|---|---|
+| **M1/M2 with 16 GB RAM** | Lyrics + music will work, but you'll have to skip Gemma (the lyric writer) or run a smaller model. Songs take ~2 min. Voice swap is tight on memory. |
+| **M2/M3 Pro/Max, 32 GB RAM** | Sweet spot for most people. Run everything comfortably. Songs in 30–60 seconds. |
+| **M3/M4 Max, 64 GB+ RAM** | Snappy. Songs in 20–30 seconds. Multiple jobs at once if you want. |
+| **M5 Max, 128 GB RAM** *(my machine)* | About **15 seconds for a 2-minute song.** Voice swap in under a minute. Everything stays buttery. |
+
+**Disk:** Plan for ~30 GB free for the AI models the first time you set it up. Generated songs are ~20 MB each — get a hundred and you've used 2 GB.
+
+**Microphone (optional):** Only needed if you want to record your own voice samples for the voice-swap feature.
+
+**Internet:** Required *once* to download the models. After that — totally offline. Take it on a plane.
+
+---
+
+## 🚀 Get started
+
+**1. Install LM Studio** (for the lyric writer) → [lmstudio.ai](https://lmstudio.ai), pull a Gemma model, hit "Start Server."
+
+**2. Set up the music engine** — clone [ACE-Step](https://github.com/ace-step/ACE-Step) somewhere on your machine. The supervisor script expects it.
+
+**3. Install seed-vc and demucs** for the voice-swap pipeline (`pip install seed-vc demucs`).
+
+**4. Run it:**
+
+```bash
+bash forge_supervisor.sh
 ```
-forge_server.py             # main HTTP server + worker threads
-forge_supervisor.sh         # boots ACE-Step + forge_server
-launch.applescript          # Desktop launcher (Brave app window)
-index.html                  # the web UI
-engines/                    # ACE-Step / seed-vc / RVC — install separately
-outputs/                    # generated wavs + JSON sidecars (ignored)
-exports/                    # auto-tagged mp3s (ignored)
-```
 
-## Endpoints
+Open [http://localhost:8767](http://localhost:8767) and hit **FORGE A SONG**.
 
-- `GET  /                    ` — UI
-- `GET  /api/status          ` — engine health + jobs running
-- `GET  /api/songs           ` — library (sidecar-hydrated, persists across restarts)
-- `POST /api/song            ` — submit a generation job
-- `PATCH /api/song/<id>      ` — rename
-- `DELETE /api/song/<id>     ` — hard-delete (wav + sidecar + ACE cache variants)
-- `GET  /api/random_lyrics   ` — Gemma writes lyrics for a given style
-- `GET  /api/voices          ` — list available voice samples
-- `POST /api/swap_voice/<id> ` — voice-swap an existing song
-- `GET/POST /api/banned      ` — banned phrase list (cliché filter for Gemma)
-- `POST /api/reveal/<id>     ` — open the wav in Finder
-- `POST /api/purge_cache     ` — wipe orphan ACE cache files
+---
 
-## Voice swap pipeline
+## 🎛 What's under the hood
 
-1. demucs splits the song into `vocals.wav` + `no_vocals.wav`
-2. seed-vc converts the vocal stem to a target voice (zero-shot, just needs a sample wav)
-3. ffmpeg mixes converted vocals over the instrumental, loudness-normalised to −14 LUFS
-4. Optional `group_effect`: layers 4 pitched/timed copies for a "group of kids" sound
+| Component | Role |
+|---|---|
+| **ACE-Step 1.5** | The music brain. Generates instrumentation + vocals from your style description. (MLX backend on Apple Silicon.) |
+| **Gemma 4 31B** (via LM Studio) | The lyricist. Writes verse/chorus lyrics that fit your genre. |
+| **Demucs** | Splits a finished song into vocals + instrumental. |
+| **seed-vc** (Plachta) | Zero-shot voice cloning. Give it a 10-second sample of someone, it'll re-sing any vocal in their voice. |
+| **ffmpeg** | Mixes the new vocals back over the instrumental, loudness-normalized to −14 LUFS so it sounds pro. |
+| `forge_server.py` | The Python web server that ties it all together. Runs on port 8767. |
+| `index.html` | The whole web UI — liquid-glass theme, drifting cosmic colors, big chunky buttons. |
 
-## Banned phrases
+---
 
-Gemma's lyric prompt explicitly forbids stock genre clichés. Edit the list in the UI under
-🚫 Never use these words/phrases. Backed by `.banned_phrases.json` (gitignored).
+## 🪄 Cool things to try
 
-## License
+- **Generate the same lyrics in five different genres** — paste the same `[verse]`/`[chorus]` block, change the style preset, hit MAKE. You'll have five wildly different versions of your song in two minutes.
+- **Drop a sample of yourself reading a paragraph into the voices folder.** Voice-swap any song to your voice. Yes, it's surreal.
+- **Use the "group of kids" effect** for an instant children's-choir version of any chorus.
+- **Type a banned-phrases list** (concrete jungle, one love, irie, etc.) — Gemma will refuse to use them in lyrics.
+- **Open Fine Tune** — control era, mood, vocal character, tempo, reference artists, extra instruments. Each one stacks cleanly into the style description.
 
-Personal project. No license assigned.
+---
+
+## ⚠️ Heads up
+
+This is a **personal project**. No license assigned, no support promised, no warranty. Built it for myself and put it up because someone might learn from it.
+
+Models are large. Setup takes a minute. But once it's running it's just… yours. Forever. Offline. No one tracking what you make. No subscription that disappears when the company pivots.
+
+Have fun.
