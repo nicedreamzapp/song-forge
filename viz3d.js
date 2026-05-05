@@ -155,6 +155,75 @@
     rings.push(ring);
   });
 
+  // ---------- INSTRUMENT ORBS ----------
+  // Each orb represents a "section" of the music and reacts to its own
+  // frequency band. Distinct geometry + color per instrument.
+  const instruments = {};
+
+  // BASS — big dark amber wireframe sphere, low orbit, slow
+  instruments.bass = new THREE.Mesh(
+    new THREE.SphereGeometry(1.6, 24, 18),
+    new THREE.MeshBasicMaterial({ color: 0xff7e2a, wireframe: true, transparent: true, opacity: 0.7 })
+  );
+  instruments.bass.userData = { angle: 0, radius: 4.2, speed: 0.18, kind: 'bass' };
+  scene.add(instruments.bass);
+
+  // DRUMS — sharp octahedron, jumps on kicks
+  instruments.drums = new THREE.Mesh(
+    new THREE.OctahedronGeometry(1.3),
+    new THREE.MeshBasicMaterial({ color: 0xff3b6e, transparent: true, opacity: 0.85 })
+  );
+  instruments.drums.userData = { angle: 1.2, radius: 5.5, speed: 0.30, kind: 'drums' };
+  scene.add(instruments.drums);
+
+  // LEAD SYNTHS — two glowing spheres, react to mids
+  instruments.lead1 = new THREE.Mesh(
+    new THREE.SphereGeometry(0.95, 22, 16),
+    new THREE.MeshBasicMaterial({ color: 0x6fa9ff, transparent: true, opacity: 0.85 })
+  );
+  instruments.lead1.userData = { angle: 2.4, radius: 9.5, speed: 0.45, kind: 'lead' };
+  scene.add(instruments.lead1);
+
+  instruments.lead2 = new THREE.Mesh(
+    new THREE.SphereGeometry(0.85, 22, 16),
+    new THREE.MeshBasicMaterial({ color: 0x9fffd8, transparent: true, opacity: 0.85 })
+  );
+  instruments.lead2.userData = { angle: 4.8, radius: 11, speed: 0.38, kind: 'lead' };
+  scene.add(instruments.lead2);
+
+  // VOCAL — pink ellipsoid, mid orbit, reacts to upper-mid (vocal formants ~1-3 kHz)
+  instruments.vocal = new THREE.Mesh(
+    new THREE.SphereGeometry(0.75, 24, 20),
+    new THREE.MeshBasicMaterial({ color: 0xff6fb3, transparent: true, opacity: 0.85 })
+  );
+  instruments.vocal.userData = { angle: 0.5, radius: 7.2, speed: 0.25, kind: 'vocal' };
+  instruments.vocal.scale.set(1, 1.5, 1);
+  scene.add(instruments.vocal);
+
+  // SHIMMER ORBS — 6 tiny bright dots in outer orbit, react to highs
+  instruments.shimmer = [];
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(0.28, 12, 10),
+      new THREE.MeshBasicMaterial({ color: 0xfff5d0, transparent: true, opacity: 0.9 })
+    );
+    m.userData = { angle: (i / 6) * Math.PI * 2, radius: 13.5, speed: 0.6 + i*0.04, kind: 'shimmer' };
+    scene.add(m);
+    instruments.shimmer.push(m);
+  }
+
+  // PERCUSSION ACCENTS — 4 small purple cubes, mid-high orbit, react to high transients
+  instruments.perc = [];
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.55, 0.55),
+      new THREE.MeshBasicMaterial({ color: 0xb56cff, transparent: true, opacity: 0.85 })
+    );
+    m.userData = { angle: (i / 4) * Math.PI * 2 + 0.7, radius: 10.2, speed: 0.34 + i*0.07, kind: 'perc' };
+    scene.add(m);
+    instruments.perc.push(m);
+  }
+
   // ---------- Particle burst pool (rainbow sparks on kick) ----------
   const PARTICLE_POOL = 200;
   const partGeom = new THREE.BufferGeometry();
@@ -207,21 +276,29 @@
     const dt = Math.min(0.05, clock.getDelta());
     const t = clock.getElapsedTime();
 
-    // Pull live FFT data
-    let bass = 0, mid = 0, high = 0;
+    // Pull live FFT data — split into 5 bands so each instrument has its own
+    // reactive signal: subBass, bass, lowMid (vocal), mid (lead), high (shimmer)
+    let subBass = 0, bass = 0, lowMid = 0, mid = 0, high = 0;
     if (analyser && freqData) {
       analyser.getByteFrequencyData(freqData);
       const N = freqData.length;
-      let s1 = 0, s2 = 0, s3 = 0;
-      const b1 = Math.floor(N * 0.10), b2 = Math.floor(N * 0.40);
-      for (let i = 0;  i < b1; i++) s1 += freqData[i];
-      for (let i = b1; i < b2; i++) s2 += freqData[i];
-      for (let i = b2; i < N;  i++) s3 += freqData[i];
-      bass = (s1 / b1) / 255;
-      mid  = (s2 / (b2 - b1)) / 255;
-      high = (s3 / (N - b2)) / 255;
+      const b1 = Math.floor(N * 0.04);  // sub-bass
+      const b2 = Math.floor(N * 0.12);  // bass
+      const b3 = Math.floor(N * 0.28);  // low-mid (vocal formants)
+      const b4 = Math.floor(N * 0.55);  // mid
+      let s0=0,s1=0,s2=0,s3=0,s4=0;
+      for (let i = 0;  i < b1; i++) s0 += freqData[i];
+      for (let i = b1; i < b2; i++) s1 += freqData[i];
+      for (let i = b2; i < b3; i++) s2 += freqData[i];
+      for (let i = b3; i < b4; i++) s3 += freqData[i];
+      for (let i = b4; i < N;  i++) s4 += freqData[i];
+      subBass = (s0 / b1) / 255;
+      bass    = (s1 / (b2 - b1)) / 255;
+      lowMid  = (s2 / (b3 - b2)) / 255;
+      mid     = (s3 / (b4 - b3)) / 255;
+      high    = (s4 / (N - b4)) / 255;
     }
-    const energy = (bass + mid + high) / 3;
+    const energy = (subBass + bass + lowMid + mid + high) / 5;
 
     // Kick detection — sharp upward energy spike triggers a particle burst
     const flash = Math.max(0, energy - lastEnergy);
@@ -252,6 +329,29 @@
       ring.material.color.setHSL(h, 0.7, 0.6);
       ring.material.opacity = 0.45 + reactive * 0.55;
     });
+
+    // INSTRUMENT ORBS — each reacts to its own band
+    function tickOrb(m, reactive, sizeBase, dt) {
+      const u = m.userData;
+      u.angle += dt * u.speed * (1 + energy * 0.6);
+      const r = u.radius * (1 + reactive * 0.18);
+      m.position.x = Math.cos(u.angle) * r;
+      m.position.z = Math.sin(u.angle) * r;
+      m.position.y = Math.sin(u.angle * 0.7) * 1.2;
+      m.rotation.x += dt * (0.4 + reactive * 1.5);
+      m.rotation.y += dt * (0.6 + reactive * 1.0);
+      const target = sizeBase * (1 + reactive * 0.55);
+      m.scale.setScalar(m.scale.x + (target - m.scale.x) * 0.18);
+      m.material.opacity = 0.55 + reactive * 0.45;
+    }
+    tickOrb(instruments.bass,  Math.max(subBass, bass), 1.0, dt);
+    tickOrb(instruments.drums, flash * 3 + bass * 0.5, 1.0, dt);
+    tickOrb(instruments.lead1, mid, 1.0, dt);
+    tickOrb(instruments.lead2, mid, 1.0, dt);
+    tickOrb(instruments.vocal, lowMid, 1.0, dt);
+    instruments.vocal.scale.y = instruments.vocal.scale.x * 1.5; // keep ellipsoid
+    instruments.shimmer.forEach(m => tickOrb(m, high, 1.0, dt));
+    instruments.perc.forEach(m => tickOrb(m, high * 0.6 + flash * 0.8, 1.0, dt));
 
     // Notes: orbit + bob + pulse
     notes.forEach((sp, i) => {
