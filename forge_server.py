@@ -678,6 +678,21 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
             return self._file(ROOT / "index.html", "text/html; charset=utf-8")
+
+        # Static JS / CSS / image assets sitting next to index.html.
+        # Path is restricted to plain filenames in ROOT — dots allowed in the
+        # basename (three.min.js etc), but ".." sequences forbidden, and
+        # Path() ensures we never escape ROOT.
+        m = re.match(r"^/([\w\-][\w\-\.]*\.(?:js|css|png|jpg|jpeg|svg|ico|woff2?))$", u.path)
+        if m and ".." not in m.group(1):
+            ctype = {
+                "js":   "application/javascript; charset=utf-8",
+                "css":  "text/css; charset=utf-8",
+                "png":  "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                "svg":  "image/svg+xml", "ico": "image/x-icon",
+                "woff": "font/woff", "woff2": "font/woff2",
+            }.get(m.group(1).rsplit(".", 1)[-1].lower(), "application/octet-stream")
+            return self._file(ROOT / m.group(1), ctype)
         if u.path == "/api/status":
             with JOBS_LOCK:
                 latest = sorted(JOBS.values(), key=lambda j: j.get("created_at", 0), reverse=True)
