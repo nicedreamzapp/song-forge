@@ -1,0 +1,18 @@
+# user data — songs, exports, voice samples
+outputs/
+exports/
+voice_swap_work/
+.banned_phrases.json
+
+# engines (each is its own upstream repo / huge model checkpoints)
+engines/
+
+# python / system noise
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+
+# logs
+*.log

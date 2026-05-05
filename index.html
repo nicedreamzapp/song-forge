@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎙 Song Forge</title>
+<style>
+  :root { color-scheme: dark; --gold:#e9d28b; --gold2:#d6b06b; --bg:#0a0a0c; --pane:#15151a; --line:#2a2a32; --dim:#7a7a82; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; background: radial-gradient(ellipse at top, #16161e 0%, #08080b 60%);
+    color: #eee; font-family: -apple-system, system-ui, "SF Pro Text", Helvetica, Arial, sans-serif; }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  header { padding: 12px 20px 6px; display:flex; align-items:baseline; gap:10px; }
+  header h1 { margin:0; font-size:18px; letter-spacing:.05em;
+    background: linear-gradient(90deg, var(--gold2), var(--gold) 50%, var(--gold2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  header .sub { color: var(--dim); font-size: 11px; letter-spacing:.04em; }
+  main { flex:1; display:flex; align-items:flex-start; justify-content:center; padding: 8px 20px 20px; }
+  .stage { width: 100%; max-width: 760px; }
+  .card { background: linear-gradient(180deg, var(--pane) 0%, #0e0e12 100%);
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row + .row { margin-top: 8px; }
+  label { font-size: 10px; letter-spacing: .14em; color: var(--dim); text-transform: uppercase; min-width: 60px; }
+  .field { margin-top: 10px; }
+  .field:first-child { margin-top: 0; }
+  .field-label { font-size: 10px; letter-spacing: .14em; color: var(--gold); text-transform: uppercase; margin-bottom: 3px; }
+  .field-hint { font-size: 11px; color: var(--dim); margin-bottom: 5px; line-height: 1.4; }
+  .field-hint b { color: #c9c9d2; font-weight: 500; }
+  input, select, textarea {
+    flex: 1; background: #0a0a0e; border: 1px solid var(--line); color: #eee;
+    padding: 6px 9px; font-size: 13px; border-radius: 6px; font-family: inherit;
+  }
+  textarea { min-height: 60px; resize: vertical; line-height: 1.4; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold2); }
+
+  .makeBtn {
+    margin: 12px auto 4px; display: block; width: 100%;
+    background: linear-gradient(180deg, #2c1f0d, #1a1208);
+    border: 1px solid #6b4e1f; color: var(--gold); font-size: 15px; letter-spacing: .1em;
+    padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+    transition: transform .1s, box-shadow .2s, background .2s;
+  }
+  .makeBtn:hover { background: linear-gradient(180deg, #3a2810, #21170a); box-shadow: 0 0 24px rgba(233,210,139,.25); }
+  .makeBtn:active { transform: scale(.99); }
+  .makeBtn[disabled] { opacity: .55; cursor: progress; }
+
+  .status { margin-top: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; min-height: 38px;
+    background: #0a0a0e; font-size: 12px; color: #c9c9d2; }
+  .status .line { display:flex; gap:8px; align-items:center; }
+  .status .dot { width:10px; height:10px; border-radius:50%; background: #555; flex-shrink:0; animation: pulse 1.4s ease-in-out infinite; }
+  .status.ok .dot { background:#7fd47f; box-shadow: 0 0 10px #7fd47fcc; }
+  .status.warn .dot { background:#d4a07f; box-shadow: 0 0 10px #d4a07fcc; }
+  .status.err .dot { background:#d47f7f; box-shadow: 0 0 10px #d47f7fcc; animation:none; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1);   opacity: .9; }
+    50%      { transform: scale(1.4); opacity: 1;  }
+  }
+  .heartbeat { margin-left:auto; font-size:10px; color: var(--dim); font-family: ui-monospace, Menlo, monospace; }
+
+  /* Indeterminate animated stripes for phases without a real percent. */
+  .indet { background: repeating-linear-gradient(45deg,
+              rgba(233,210,139,.45) 0 10px,
+              rgba(214,176,107,.20) 10px 20px) !important;
+           animation: stripeShift 1.2s linear infinite;
+           width: 100% !important; }
+  @keyframes stripeShift {
+    from { background-position: 0 0; }
+    to   { background-position: 28px 0; }
+  }
+
+  .makeBtn.ready { animation: btnGlow 1.6s ease-in-out infinite; }
+  @keyframes btnGlow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(233,210,139,0); }
+    50%     { box-shadow: 0 0 22px 4px rgba(233,210,139,.45); }
+  }
+
+  audio { width: 100%; margin-top: 12px; filter: invert(.92) hue-rotate(180deg); }
+
+  .lyrics { white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color:#aebed3;
+    background: #08080b; border:1px solid var(--line); border-radius:8px; padding:10px 12px; max-height: 220px; overflow:auto;
+    margin-top: 10px; }
+
+  .recent { margin-top: 14px; }
+  .recent h3 { font-size: 11px; letter-spacing: .14em; color: var(--dim); margin: 0 0 6px; text-transform: uppercase; }
+  .song { display:flex; gap:8px; align-items:center; padding: 5px 8px; border:1px solid var(--line); border-radius:6px;
+    margin-bottom:4px; background: #0a0a0e; }
+  .song .name { flex:1; font-size: 12px; color:#c9c9d2; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .song button, .song a.btn {
+    background:#1c1c22; color:#ddd; border:1px solid var(--line);
+    padding:3px 7px; border-radius:5px; cursor:pointer; font-size:10px;
+    text-decoration:none; display:inline-flex; align-items:center; gap:3px;
+    letter-spacing:.03em;
+  }
+  .song button:hover, .song a.btn:hover { background:#25252e; border-color:var(--gold2); color:#fff; }
+  .song button.del, .song a.btn.del { color:#a08080; }
+  .song button.del:hover { background:#3a1818; color:#f0c0c0; border-color:#5a2222; }
+  .song .ico { font-size:13px; line-height:1; }
+  .song.playing {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, #1a160a 0%, #0d0b07 100%);
+    animation: songPulse 1.6s ease-in-out infinite;
+  }
+  .song.playing .name strong { color: #ffe098; text-shadow: 0 0 8px rgba(255,224,152,.4); }
+  .song.playing .play-indicator { display:inline-flex; }
+  @keyframes songPulse {
+    0%,100% { box-shadow: 0 0 12px rgba(233,210,139,.20); }
+    50%     { box-shadow: 0 0 28px rgba(233,210,139,.55); }
+  }
+  .play-indicator { display:none; align-items:center; gap:3px; margin-right:6px; color:var(--gold); font-size:11px; }
+  .play-indicator .bar { width:3px; background:var(--gold); border-radius:2px; animation: barWave 1s ease-in-out infinite; }
+  .play-indicator .bar:nth-child(1) { height:7px;  animation-delay:0s;   }
+  .play-indicator .bar:nth-child(2) { height:11px; animation-delay:.18s; }
+  .play-indicator .bar:nth-child(3) { height:9px;  animation-delay:.36s; }
+  .play-indicator .bar:nth-child(4) { height:13px; animation-delay:.10s; }
+  @keyframes barWave {
+    0%,100% { transform: scaleY(.4); }
+    50%     { transform: scaleY(1);  }
+  }
+  .song .name { cursor: pointer; }
+  .song-lyrics { display:none; margin-top:6px; padding:8px 10px; background:#08080b; border:1px solid var(--line); border-radius:6px;
+    font-family: ui-monospace, Menlo, monospace; font-size:11px; color:#aebed3; white-space:pre-wrap; max-height:200px; overflow:auto; }
+  .song-lyrics.open { display:block; }
+  button.del-all { background:transparent; color:#7a5a5a; border:1px solid #3a2828; padding:3px 9px; border-radius:6px; font-size:10px; cursor:pointer; letter-spacing:.06em; }
+  button.del-all:hover { color:#f0c0c0; background:#2a1414; border-color:#5a2222; }
+  button.dice-btn { background:#1a1208; color:var(--gold); border:1px solid #6b4e1f; padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; letter-spacing:.06em; }
+  button.dice-btn:hover { background:#2c1f0d; box-shadow: 0 0 10px rgba(233,210,139,.3); }
+
+  .footer { color: var(--dim); font-size: 10px; text-align:center; padding: 12px; letter-spacing: .08em; }
+  details { margin-top: 10px; }
+  details summary { color: var(--dim); font-size: 11px; cursor: pointer; }
+  details[open] summary { color: #c9c9d2; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🎙 SONG FORGE</h1>
+    <span class="sub">— local · in your voice · any style</span>
+  </header>
+  <main>
+    <div class="stage">
+      <div class="card">
+        <div class="field">
+          <div class="field-label">Title</div>
+          <div class="field-hint">For your library only — never sung or shown in the music.</div>
+          <input id="title" placeholder="e.g. 'Humboldt Cruise'" style="width:100%;" />
+        </div>
+
+        <div class="field">
+          <div class="field-label">Style — what it SOUNDS like</div>
+          <div class="field-hint">
+            Describe the <b>music</b>: genre, instruments, tempo, vibe, reference artists.
+            <b>Not sung.</b> Pick a genre preset or type your own.
+            <br><br>
+            <b style="color:var(--gold);">Vocal arrangement tips</b> — these phrases work well in your description:
+            <span style="color:#c9c9d2;">male vocal · female vocal · choir · backing vocals · harmony · high falsetto lead with deep baritone harmony · male and female call-and-response · gospel choir · humming · no vocals (instrumental).</span>
+            <span style="color:#a08080;"> Per-line voice swapping (one verse male, next verse female) does NOT reliably work in this model — describe the arrangement up front instead.</span>
+          </div>
+          <select id="stylePreset" style="width:100%;margin-bottom:6px;">
+            <option value="">— genre preset —</option>
+            <option value="pop song with catchy hook, bright synths, four-on-the-floor drums, polished modern mix, 110 bpm">pop</option>
+            <option value="rock band with electric guitars, driving drums, bass, energetic male vocals, 120 bpm">rock</option>
+            <option value="gritty east coast boom-bap hip-hop with hard-hitting kick and snare, dusty sampled soul loop, sub bass, scratched vinyl, Black male rapper from Brooklyn/Queens with raw aggressive flow and gravelly low voice, classic 90s underground hip-hop production in the tradition of Wu-Tang, Mobb Deep, Nas, 90 bpm">hip-hop · boom-bap (gritty)</option>
+            <option value="modern southern trap hip-hop with hard-hitting 808 sub bass, rapid-fire trap hi-hats and triplet snares, dark minor-key piano, Black male Atlanta rapper with deep Southern drawl and aggressive delivery, autotuned ad-libs, street production in the tradition of Future, 21 Savage, Young Thug, 140 bpm">hip-hop · trap (hard)</option>
+            <option value="soulful R&amp;B with electric piano, warm bass, smooth groove, Black male vocalist with rich gospel-trained voice, melismatic runs, blue notes, falsetto flourishes, vocal layering, 90s neo-soul production in the tradition of D'Angelo, Maxwell, Bilal, 80 bpm">r&amp;b · neo-soul</option>
+            <option value="country song with acoustic guitar, fiddle, pedal steel, story-driven male vocals, 100 bpm">country</option>
+            <option value="Jamaican roots reggae with offbeat skank guitar, warm rocksteady bass, conga and rim-shot drums, Black Jamaican male vocalist with rich patois inflection and soulful Kingston roots tone, in the tradition of Burning Spear, Israel Vibration, The Congos, 78 bpm">reggae · roots (Jamaican)</option>
+            <option value="traditional Black American gospel with Hammond B3 organ, piano, bass, drums, lead Black gospel vocalist with powerful melismatic delivery and church-trained voice, full Black church choir on the chorus, call-and-response, hand-claps, soulful build-up, in the tradition of the Mississippi Mass Choir, Hezekiah Walker, Kirk Franklin, 100 bpm">gospel · Black church</option>
+            <option value="electronic dance with pulsing synths, four-on-the-floor kick, sidechained bass, big drop, 128 bpm">electronic / EDM</option>
+            <option value="house track with classic disco bassline, filtered piano stabs, four-on-the-floor, soulful vocal samples, 122 bpm">house</option>
+            <option value="techno track with relentless kick, hypnotic synth lines, dark atmosphere, minimal vocals, 130 bpm">techno</option>
+            <option value="jazz combo with upright bass, brushed drums, piano comping, smooth saxophone, 95 bpm">jazz</option>
+            <option value="blues song with bent electric guitar, walking bass, shuffle drums, gritty male vocals, 90 bpm">blues</option>
+            <option value="folk song with fingerpicked acoustic guitar, harmonica, intimate male vocals, 95 bpm">folk</option>
+            <option value="metal track with distorted guitars, double-kick drums, heavy bass, aggressive male vocals, 140 bpm">metal</option>
+            <option value="punk rock track with fast power chords, pounding drums, raw male vocals, 160 bpm">punk</option>
+            <option value="lofi hip-hop with mellow rhodes, vinyl crackle, soft drums, dreamy chopped samples, 75 bpm">lofi</option>
+            <option value="ambient piece with evolving synth pads, no drums, dreamy texture, soft reverb, 60 bpm">ambient</option>
+          </select>
+
+          <select id="vocalPreset" style="width:100%;margin-bottom:6px;">
+            <option value="">— vocal arrangement (optional, appended to genre) —</option>
+            <option value="male lead vocal">male lead</option>
+            <option value="female lead vocal">female lead</option>
+            <option value="male lead vocal with female backing vocals and harmonies">male lead with female backups</option>
+            <option value="female lead vocal with male backing vocals and harmonies">female lead with male backups</option>
+            <option value="two male vocals trading lines, call-and-response duet">two males · call-and-response</option>
+            <option value="two female vocals trading lines, call-and-response duet">two females · call-and-response</option>
+            <option value="group choir chorus with a single lead vocalist on the verses">group choir on chorus</option>
+            <option value="instrumental, no vocals">instrumental (no vocals)</option>
+          </select>
+
+          <textarea id="style" placeholder="describe the music here — instruments, tempo, vibe, reference artists" style="min-height:64px;"></textarea>
+
+          <details style="margin-top:8px;">
+            <summary style="color:var(--gold);font-size:11px;cursor:pointer;letter-spacing:.06em;">🎛 Fine tune — add more details</summary>
+            <div class="field-hint" style="margin-top:6px;">
+              Each control APPENDS to the Style textarea. Switch a control to a new value and the previous appended phrase gets cleanly replaced.
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+              <div>
+                <div class="field-label" style="margin-bottom:4px;">Era</div>
+                <select id="eraPreset" style="width:100%;">
+                  <option value="">— era —</option>
+                  <option value="1960s vintage analog production, mono mixes, room sound">1960s</option>
+                  <option value="1970s warm analog production, tape saturation, real instruments, no digital">1970s</option>
+                  <option value="1980s bright digital production with gated reverb drums, DX7 synths, big chorus pedal guitars">1980s</option>
+                  <option value="1990s gritty production with grunge guitars, dusty samplers, raw recording, period-correct mixing">1990s</option>
+                  <option value="2000s polished early-2000s digital production, autotune flourishes, slick mixing">2000s</option>
+                  <option value="2010s modern digital production, sidechained bass, layered synths, contemporary mix">2010s</option>
+                  <option value="contemporary 2020s production, hyperpop and TikTok-era bright modern sound">contemporary 2020s</option>
+                  <option value="lo-fi bedroom recording, tape hiss, room sound, intentionally unpolished, analog character">lo-fi bedroom</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="field-label" style="margin-bottom:4px;">Mood</div>
+                <select id="moodPreset" style="width:100%;">
+                  <option value="">— mood —</option>
+                  <option value="uplifting hopeful joyful energy">uplifting · joyful</option>
+                  <option value="melancholy bittersweet wistful mood">melancholy · wistful</option>
+                  <option value="dark moody atmospheric tension">dark · moody</option>
+                  <option value="aggressive intense driving energy">aggressive · intense</option>
+                  <option value="dreamy hazy romantic atmosphere">dreamy · romantic</option>
+                  <option value="defiant rebellious confrontational tone">defiant · rebellious</option>
+                  <option value="peaceful contemplative serene calm">peaceful · serene</option>
+                  <option value="playful quirky humorous tone">playful · quirky</option>
+                  <option value="anxious paranoid restless tension">anxious · restless</option>
+                  <option value="triumphant anthemic celebratory feel">triumphant · anthemic</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="field-label" style="margin-bottom:4px;">Vocal character</div>
+                <select id="vocalCharPreset" style="width:100%;">
+                  <option value="">— vocal character —</option>
+                  <option value="smooth polished vocal delivery, controlled and clean">smooth · polished</option>
+                  <option value="raspy gritty vocal with rough edges">raspy · gritty</option>
+                  <option value="gravelly deep growling vocal texture">gravelly · growling</option>
+                  <option value="breathy intimate close-mic vocal">breathy · intimate</option>
+                  <option value="belted powerful chest-voice delivery">belted · powerful</option>
+                  <option value="autotuned heavily processed modern vocal">autotuned · processed</option>
+                  <option value="spoken-word vocal delivery, mostly speaking with melodic flourishes">spoken-word</option>
+                  <option value="whispered hushed vocal delivery">whispered · hushed</option>
+                  <option value="high falsetto-led vocal throughout">high falsetto-led</option>
+                  <option value="deep baritone-led vocal throughout">deep baritone-led</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="field-label" style="margin-bottom:4px;">Tempo feel</div>
+                <select id="tempoPreset" style="width:100%;">
+                  <option value="">— tempo feel —</option>
+                  <option value="slow drag tempo around 60 bpm">very slow (~60 bpm)</option>
+                  <option value="laid-back tempo around 75 bpm">laid-back (~75 bpm)</option>
+                  <option value="mid-tempo around 95 bpm">mid-tempo (~95 bpm)</option>
+                  <option value="upbeat tempo around 115 bpm">upbeat (~115 bpm)</option>
+                  <option value="fast driving tempo around 140 bpm">fast (~140 bpm)</option>
+                  <option value="very fast frantic tempo around 175 bpm">frantic (~175 bpm)</option>
+                  <option value="half-time feel, drums on the back-beat only">half-time feel</option>
+                  <option value="double-time feel, busy hi-hats">double-time feel</option>
+                  <option value="swung shuffle groove">swung shuffle</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <div class="field-label" style="margin-bottom:4px;">Sounds like (reference artists)</div>
+              <input id="soundsLikeInput" placeholder="e.g. Stevie Wonder, D'Angelo, Bilal" style="width:100%;" />
+            </div>
+
+            <div style="margin-top:10px;">
+              <div class="field-label" style="margin-bottom:4px;">Extra instruments</div>
+              <input id="extraInstrumentsInput" placeholder="e.g. saxophone solo, hand claps, sitar, glockenspiel" style="width:100%;" />
+            </div>
+
+            <button id="applyFineTuneBtn" type="button" style="background:#1c1c22;color:#ddd;border:1px solid var(--line);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:10px;">Apply text inputs to Style</button>
+            <span id="fineTuneSaved" style="color:#7fd47f;font-size:11px;margin-left:10px;display:none;">✓ applied</span>
+          </details>
+        </div>
+
+        <div class="field">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <div class="field-label" style="margin:0;">Lyrics — what gets SUNG</div>
+            <button id="randomLyricsBtn" type="button" class="dice-btn" title="Auto-write lyrics for me">🎲 You choose for me</button>
+          </div>
+          <div class="field-hint">
+            The actual <b>words</b> in the song. Leave blank for auto-written placeholder lyrics, or paste your own.
+            Use <code style="color:#c9c9d2;">[verse]</code> and <code style="color:#c9c9d2;">[chorus]</code> tags to mark sections.
+          </div>
+          <textarea id="lyrics" placeholder="[verse]&#10;sun melts down on the asphalt&#10;blue mist hanging on the trees&#10;&#10;[chorus]&#10;ride the chrome wave&#10;diamonds spinning in my head" style="min-height:120px;"></textarea>
+        </div>
+
+        <div class="field" style="display:flex;gap:14px;align-items:end;">
+          <div style="flex:1;">
+            <div class="field-label">Length</div>
+            <select id="duration" style="width:100%;">
+              <option value="60">1 minute</option>
+              <option value="90">1½ minutes</option>
+              <option value="120" selected>2 minutes</option>
+              <option value="180">3 minutes</option>
+              <option value="240">4 minutes</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <div class="field-label">BPM <span style="color:var(--dim);text-transform:none;font-size:10px;letter-spacing:0;">(blank = auto)</span></div>
+            <input id="bpm" type="number" min="40" max="220" placeholder="auto" style="width:100%;" />
+          </div>
+        </div>
+
+        <details style="margin-top:14px;">
+          <summary style="color:var(--dim);font-size:11px;cursor:pointer;">🚫 Never use these words/phrases (advanced)</summary>
+          <div class="field-hint" style="margin-top:6px;">
+            One per line, or comma-separated. Gemma will be told never to use these,
+            and any lyrics that slip them in are auto-rejected (it'll re-roll up to 3 times).
+            <br><br>
+            <span style="color:var(--gold);">Examples:</span>
+            <span style="color:#c9c9d2;">concrete jungle, babylon, one love, easy skanking, irie, jah, positive vibes, tailgate, moonshine</span>
+          </div>
+          <textarea id="bannedList" placeholder="concrete jungle&#10;one love&#10;babylon" style="min-height:60px;width:100%;"></textarea>
+          <button id="saveBannedBtn" type="button" style="background:#1c1c22;color:#ddd;border:1px solid var(--line);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:6px;">Save ban list</button>
+          <span id="bannedSaved" style="color:#7fd47f;font-size:11px;margin-left:10px;display:none;">✓ saved</span>
+        </details>
+
+        <button id="makeBtn" class="makeBtn">🎵 MAKE ME A SONG</button>
+
+        <div id="status" class="status warn">
+          <div class="line"><span class="dot"></span><span id="statusText">checking ACE-Step…</span><span id="heartbeat" class="heartbeat">·</span></div>
+
+          <div id="genBlock" hidden style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);">
+              <span id="genStage">—</span>
+              <span id="genPct">0%</span>
+            </div>
+            <div style="margin-top:6px;height:6px;background:#0a0a0e;border:1px solid var(--line);border-radius:3px;overflow:hidden;">
+              <div id="genBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .4s;"></div>
+            </div>
+          </div>
+
+          <div id="dlBlock" hidden style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--dim);">
+              <span id="dlHeadline">—</span>
+              <span id="dlPct">—</span>
+            </div>
+            <div style="margin-top:6px;height:6px;background:#0a0a0e;border:1px solid var(--line);border-radius:3px;overflow:hidden;">
+              <div id="dlBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .8s;"></div>
+            </div>
+            <div id="dlFiles" style="margin-top:8px;font-size:10px;color:var(--dim);font-family:ui-monospace,Menlo,monospace;line-height:1.55;"></div>
+          </div>
+        </div>
+
+        <audio id="player" controls preload="none" hidden></audio>
+        <div id="usedLyrics" class="lyrics" hidden></div>
+      </div>
+
+      <div class="recent">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 8px;">
+          <h3 style="margin:0;">Library</h3>
+          <div style="display:flex;gap:8px;">
+            <button id="purgeCacheBtn" class="del-all" title="Delete orphaned ACE-Step cache files (frees disk space without touching your library)">🧹 Purge orphans</button>
+            <button id="clearAllBtn" class="del-all" title="Delete every song in the library">Clear all</button>
+          </div>
+        </div>
+        <div id="recentList"></div>
+      </div>
+    </div>
+  </main>
+  <div class="footer">ACE-Step 1.5 · MLX backend · all local</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const make = $('makeBtn'), status = $('status'), statusText = $('statusText');
+  const player = $('player'), used = $('usedLyrics'), recent = $('recentList');
+
+  function setStatus(text, kind){
+    statusText.textContent = text;
+    status.className = 'status ' + (kind || 'warn');
+  }
+
+  const dlBlock = $('dlBlock'), dlBar = $('dlBar'), dlPct = $('dlPct'),
+        dlHeadline = $('dlHeadline'), dlFiles = $('dlFiles');
+  const genBlock = $('genBlock'), genBar = $('genBar'), genPct = $('genPct'), genStage = $('genStage');
+  const heartbeat = $('heartbeat');
+
+  function showGen(pct, stageText, indet){
+    genBlock.hidden = false;
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    if (indet) {
+      genBar.classList.add('indet');
+      genPct.textContent = '…';
+    } else {
+      genBar.classList.remove('indet');
+      genBar.style.width = p + '%';
+      genPct.textContent = p + '%';
+    }
+    genStage.textContent = stageText || '—';
+  }
+  function hideGen(){
+    genBlock.hidden = true;
+    genBar.classList.remove('indet');
+    genBar.style.width = '0%';
+    genPct.textContent = '0%';
+  }
+  const fmtElapsed = ms => {
+    const s = Math.max(0, Math.floor(ms/1000));
+    const m = Math.floor(s/60), r = s%60;
+    return m ? `${m}m ${r}s` : `${s}s`;
+  };
+  const fmtEta = ms => {
+    if (!isFinite(ms) || ms <= 0) return '—';
+    const s = Math.max(0, Math.ceil(ms/1000));
+    const m = Math.floor(s/60), r = s%60;
+    return m ? `~${m}m ${r}s` : `~${s}s`;
+  };
+
+  // Per-tick heartbeat so the page visibly proves it's still polling, even when
+  // the underlying phase is a long "loading model" with no server-side percent.
+  let heartCount = 0;
+  function beat(){
+    heartCount++;
+    const ticks = ['·  ','·· ','···','·· '];
+    heartbeat.textContent = ticks[heartCount % ticks.length] + ' ' +
+                            new Date().toLocaleTimeString().split(' ')[0];
+  }
+
+  // Track when the current "booting" / "loading" phase started so we can
+  // show elapsed time during opaque phases ACE doesn't expose progress for.
+  let phaseStartedAt = Date.now();
+  let lastShownPhase = '';
+
+  function renderDownload(d){
+    if (!d) { dlBlock.hidden = true; return; }
+    dlBlock.hidden = false;
+    const h = d.headline || {};
+    dlHeadline.textContent = (h.file || '—') + '  ·  ' + (h.done||'') + '/' + (h.total||'') +
+                             '  ·  ' + (h.speed||'') + '  ·  ETA ' + (h.eta||'?');
+    dlPct.textContent = d.overall_pct + '%   (' + d.files_done + '/' + d.files_total + ' files done)';
+    dlBar.style.width = d.overall_pct + '%';
+    dlFiles.innerHTML = (d.files || []).map(f =>
+      `<div>${f.pct.toString().padStart(3,' ')}% &nbsp; ${f.file} &nbsp; ${f.done}/${f.total} &nbsp; ${f.speed}</div>`
+    ).join('');
+  }
+
+  // Sticky phase tracker so the UI doesn't churn between booting/downloading/ready
+  // states each tick. Once we enter a phase we stay until evidence we've moved on.
+  let phase = 'booting';
+
+  async function pingStatus(){
+    beat();
+    try {
+      const r = await fetch('/api/status'); const j = await r.json();
+      renderDownload(j.download);
+      const dl = j.download;
+      const dlActive = dl && dl.overall_pct < 100;
+      // State machine: booting → downloading → loading → ready
+      if (dlActive)                       phase = 'downloading';
+      else if (dl && !j.ace_up)           phase = 'downloading'; // still finalising
+      else if (!j.ace_up)                 { if (phase !== 'downloading') phase = 'booting'; }
+      else if (j.ace_up && phase !== 'ready') phase = (phase === 'downloading' ? 'loading' : 'ready');
+      // Once health is up AND no active downloads for one full tick, mark ready.
+      if (j.ace_up && !dlActive)          phase = 'ready';
+
+      if (phase !== lastShownPhase) { phaseStartedAt = Date.now(); lastShownPhase = phase; }
+      const elapsed = fmtElapsed(Date.now() - phaseStartedAt);
+
+      if (phase === 'downloading') {
+        const eta = (dl.headline && dl.headline.eta) ? ` · ETA ${dl.headline.eta}` : '';
+        setStatus(`stage 2/4 · downloading model weights · ${dl.overall_pct}%${eta} · ${elapsed}`, 'warn');
+      }
+      else if (phase === 'loading') setStatus(`stage 3/4 · loading model into memory · ${elapsed}`, 'warn');
+      else if (phase === 'ready') {
+        if (j.jobs_running) {
+          setStatus(`generating · ${j.jobs_running} job(s) running`, 'ok');
+          make.classList.remove('ready');
+        } else {
+          setStatus('READY — click MAKE ME A SONG below ↓', 'ok');
+          make.classList.add('ready');
+        }
+      }
+      else                          setStatus(`stage 1/4 · ACE-Step booting · ${elapsed}`, 'warn');
+
+      // While booting/loading there's no real percent — show animated stripes
+      // so the user sees motion. Hide the gen bar entirely once the system is
+      // idle and ready (the poll() loop owns the bar during a real job).
+      if (phase === 'booting')         showGen(0, 'booting ACE-Step', true);
+      else if (phase === 'loading')    showGen(0, 'loading model into memory', true);
+      else if (phase === 'downloading') hideGen(); // download has its own bar
+      else if (phase === 'ready' && !j.jobs_running) hideGen();
+    } catch (e) { setStatus('forge server not reachable', 'err'); make.classList.remove('ready'); }
+  }
+  pingStatus(); setInterval(pingStatus, 2500);
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Track which library song is currently playing so we can highlight its row.
+  let currentlyPlayingId = null;
+  function applyPlayingHighlight(){
+    document.querySelectorAll('.song').forEach(el => el.classList.remove('playing'));
+    if (!currentlyPlayingId) return;
+    const btn = document.querySelector(`.song button.play[data-id="${currentlyPlayingId}"]`);
+    if (btn) btn.closest('.song').classList.add('playing');
+  }
+  // The browser's <audio> element fires these on every state change.
+  player.addEventListener('play',   () => applyPlayingHighlight());
+  player.addEventListener('pause',  () => { currentlyPlayingId = null; applyPlayingHighlight(); });
+  player.addEventListener('ended',  () => { currentlyPlayingId = null; applyPlayingHighlight(); });
+  function songFilename(s){
+    const base = (s.title || s.idea || 'song').replace(/[^a-z0-9_\- ]+/gi,'').trim().slice(0,80) || 'song';
+    return base + '.wav';
+  }
+
+  async function refreshRecent(){
+    try {
+      const r = await fetch('/api/songs'); const j = await r.json();
+      recent.innerHTML = '';
+      (j.songs || []).filter(s => s.status === 'done').forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'song';
+        const t = new Date(s.created_at*1000).toLocaleString();
+        const displayName = s.title || s.idea || s.style || 'untitled';
+        const dur = s.duration ? ` · ${Math.round(s.duration)}s` : '';
+        const bpm = s.bpm ? ` · ${s.bpm}bpm` : '';
+        div.innerHTML = `
+          <div style="display:flex;gap:10px;align-items:center;width:100%;">
+            <span class="play-indicator" aria-hidden="true">
+              <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            </span>
+            <div class="name" data-id="${s.id}" title="Click to expand lyrics" style="flex:1;font-size:12px;color:#c9c9d2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <strong style="color:#e9d28b;">${escapeHtml(displayName).slice(0,90)}</strong>
+              <span style="color:var(--dim);">· ${t}${dur}${bpm}</span>
+            </div>
+            <button class="play"   data-id="${s.id}"><span class="ico">▶</span> Play</button>
+            <a      class="btn dl" href="/audio/${s.id}.wav" download="${escapeHtml(songFilename(s))}"><span class="ico">⬇</span> Save</a>
+            <button class="swap"   data-id="${s.id}"><span class="ico">🎤</span> Voice</button>
+            <button class="reveal" data-id="${s.id}"><span class="ico">↗</span> Show</button>
+            <button class="rename" data-id="${s.id}"><span class="ico">✎</span> Rename</button>
+            <button class="del"    data-id="${s.id}"><span class="ico">✕</span> Delete</button>
+          </div>
+          <div class="song-lyrics" id="lyr-${s.id}">${escapeHtml(s.lyrics || '(no lyrics stored)')}</div>
+        `;
+        recent.appendChild(div);
+      });
+      recent.querySelectorAll('.name').forEach(el => el.onclick = () => {
+        document.getElementById('lyr-' + el.dataset.id).classList.toggle('open');
+      });
+      recent.querySelectorAll('button.play').forEach(b => b.onclick = async () => {
+        const r = await fetch('/api/song/' + b.dataset.id);
+        const s = await r.json();
+        currentlyPlayingId = s.id;
+        playSong(s);
+        applyPlayingHighlight();
+      });
+      recent.querySelectorAll('button.reveal').forEach(b => b.onclick = async () => {
+        await fetch('/api/reveal/' + b.dataset.id, { method:'POST' });
+      });
+      recent.querySelectorAll('button.swap').forEach(b => b.onclick = async () => {
+        const r = await fetch('/api/voices');
+        const j = await r.json();
+        const voices = j.voices || [];
+        if (!voices.length) { alert('No voice samples found.\nDrop a .wav into ~/Library/Application Support/sh.voicebox.app/'); return; }
+        const list = voices.map((v, i) => `${i+1}) ${v.name}`).join('\n');
+        const choice = prompt(
+          'Voice swap — pick a voice (number), and append "g" for group-of-kids effect:\n\n' +
+          list +
+          '\n\nExamples:\n  "1"   → swap to ' + voices[0].name + ' (single voice)\n  "1g"  → group of ' + voices[0].name + ' singing together'
+        );
+        if (!choice) return;
+        const m = choice.trim().match(/^(\d+)(g)?$/i);
+        if (!m) { alert('Invalid input. Use a number, optionally followed by "g".'); return; }
+        const idx = parseInt(m[1], 10) - 1;
+        if (idx < 0 || idx >= voices.length) { alert('No voice at that number.'); return; }
+        const group = !!m[2];
+        const v = voices[idx];
+        const r2 = await fetch('/api/swap_voice/' + b.dataset.id, {
+          method: 'POST', headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ voice_path: v.path, voice_name: v.name, group_effect: group }),
+        });
+        const j2 = await r2.json();
+        if (j2.error) { alert('Swap failed: ' + j2.error); return; }
+        alert('Voice swap started — ~1 minute. New entry will appear in the library when ready.');
+        refreshRecent();
+      });
+      recent.querySelectorAll('button.rename').forEach(b => b.onclick = async () => {
+        const cur = b.parentElement.querySelector('.name strong')?.textContent || '';
+        const next = prompt('New title:', cur);
+        if (next === null) return;
+        const r = await fetch('/api/song/' + b.dataset.id, {
+          method:'PATCH', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ title: next.trim() }),
+        });
+        if (!r.ok) { alert('Rename failed'); return; }
+        refreshRecent();
+      });
+      recent.querySelectorAll('button.del').forEach(b => b.onclick = async () => {
+        if (!confirm('Delete this song? This cannot be undone.')) return;
+        const r = await fetch('/api/song/' + b.dataset.id, { method: 'DELETE' });
+        if (!r.ok) { alert('Delete failed'); return; }
+        refreshRecent();
+      });
+      // refreshRecent rebuilds DOM every 10s; re-apply the highlight afterward.
+      applyPlayingHighlight();
+    } catch (e) {}
+  }
+  refreshRecent(); setInterval(refreshRecent, 10000);
+
+  // Genre preset overwrites the Style textarea.
+  $('stylePreset').addEventListener('change', e => {
+    if (e.target.value) $('style').value = e.target.value;
+  });
+
+  // Modifier dropdowns all APPEND a phrase to the Style textarea. Each tracks
+  // its own "last applied" phrase so swapping to a new value replaces in place
+  // without stacking duplicates. Free-text inputs (sounds-like, extra
+  // instruments) are applied via the "Apply text inputs to Style" button.
+  const appliedMod = { vocal:'', era:'', mood:'', char:'', tempo:'', soundsLike:'', extras:'' };
+  const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  function applyModifier(key, next){
+    let cur = $('style').value;
+    const old = appliedMod[key];
+    if (old) {
+      // Strip the old phrase whether it's in the middle or at the end.
+      const re = new RegExp(',?\\s*' + escRe(old) + '(?=,|$)', 'g');
+      cur = cur.replace(re, '').trim().replace(/^,\s*|,\s*$/g, '');
+    }
+    if (next) {
+      cur = cur ? cur + ', ' + next : next;
+    }
+    $('style').value = cur;
+    appliedMod[key] = next || '';
+  }
+  $('vocalPreset').addEventListener('change',     e => applyModifier('vocal', e.target.value));
+  $('eraPreset')?.addEventListener('change',      e => applyModifier('era',   e.target.value));
+  $('moodPreset')?.addEventListener('change',     e => applyModifier('mood',  e.target.value));
+  $('vocalCharPreset')?.addEventListener('change',e => applyModifier('char',  e.target.value));
+  $('tempoPreset')?.addEventListener('change',    e => applyModifier('tempo', e.target.value));
+
+  $('applyFineTuneBtn')?.addEventListener('click', () => {
+    const sl = $('soundsLikeInput').value.trim();
+    const ex = $('extraInstrumentsInput').value.trim();
+    applyModifier('soundsLike', sl ? `in the tradition of ${sl}` : '');
+    applyModifier('extras',     ex ? `add ${ex}` : '');
+    const saved = $('fineTuneSaved');
+    saved.style.display = 'inline';
+    setTimeout(() => saved.style.display = 'none', 1500);
+  });
+
+  // 🎲 button — fills the Lyrics textarea with auto-written lyrics. Tries the
+  // local LLM first (Gemma via LM Studio :1234), passing the current Style so
+  // lyrics match the genre. Falls back to the random-template if no LLM.
+  $('randomLyricsBtn').onclick = async () => {
+    const cur = $('lyrics').value.trim();
+    if (cur && !confirm('Replace the lyrics you have with auto-written ones?')) return;
+    const btn = $('randomLyricsBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '✏️ writing…';
+    try {
+      const params = new URLSearchParams({
+        style: $('style').value || '',
+        theme: $('title').value || '',
+      });
+      const r = await fetch('/api/random_lyrics?' + params.toString());
+      const j = await r.json();
+      $('lyrics').value = j.lyrics || '';
+      btn.innerHTML = (j.source === 'llm' ? '🎲 ✓ Gemma wrote these' : '🎲 (template — LLM offline)');
+      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2500);
+    } catch (e) {
+      alert('Could not fetch lyrics: ' + e);
+      btn.innerHTML = orig; btn.disabled = false;
+    }
+  };
+
+  // Banned-phrases editor — load once on page open, save on click.
+  async function loadBanned(){
+    try {
+      const r = await fetch('/api/banned'); const j = await r.json();
+      $('bannedList').value = (j.banned || []).join('\n');
+    } catch (e) {}
+  }
+  $('saveBannedBtn').onclick = async () => {
+    const items = $('bannedList').value
+      .split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    const r = await fetch('/api/banned', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ banned: items }),
+    });
+    if (r.ok) {
+      const saved = $('bannedSaved');
+      saved.style.display = 'inline';
+      setTimeout(() => saved.style.display = 'none', 1500);
+    } else {
+      alert('Save failed');
+    }
+  };
+  loadBanned();
+
+  $('clearAllBtn').onclick = async () => {
+    if (!confirm('Delete EVERY song in the library? This cannot be undone.')) return;
+    const r = await fetch('/api/songs', { method:'DELETE' });
+    if (!r.ok) { alert('Clear-all failed'); return; }
+    refreshRecent();
+  };
+
+  $('purgeCacheBtn').onclick = async () => {
+    if (!confirm('Delete orphaned ACE-Step cache files? Your library is untouched — this only removes intermediate render files no song in your library is using.')) return;
+    const r = await fetch('/api/purge_cache', { method:'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { alert('Purge failed: ' + (j.error || r.status)); return; }
+    alert('Removed ' + j.removed + ' files, freed ' + j.freed_mb + ' MB.');
+  };
+
+  function playSong(s){
+    if (s.audio){ player.src = s.audio; player.hidden = false; player.play().catch(()=>{}); }
+    if (s.lyrics){ used.textContent = s.lyrics; used.hidden = false; }
+  }
+
+  async function poll(id){
+    const startedAt = Date.now();
+    while (true){
+      const r = await fetch('/api/song/' + id);
+      if (!r.ok) { setStatus('lost track of job', 'err'); hideGen(); return; }
+      const s = await r.json();
+      const elapsed = fmtElapsed(Date.now() - startedAt);
+      const pct = Math.round((s.progress || 0) * 100);
+      const stageText = (s.stage || '').toString().slice(0, 60);
+
+      if (s.status === 'queued') {
+        setStatus(`queued · waiting for ACE-Step · ${elapsed}`, 'warn');
+        showGen(0, 'queued');
+      } else if (s.status === 'running') {
+        const elapsedMs = Date.now() - startedAt;
+        const etaStr = (pct > 2) ? fmtEta(elapsedMs * (100 - pct) / pct) : '—';
+        setStatus(`generating · ${pct}% · ${elapsed} elapsed · ETA ${etaStr}`, 'warn');
+        showGen(pct, stageText || 'generating');
+      } else if (s.status === 'done') {
+        setStatus(`done · ${elapsed} total`, 'ok');
+        showGen(100, 'done');
+        setTimeout(hideGen, 2500);
+        playSong(s); refreshRecent(); make.disabled = false; return;
+      } else if (s.status === 'error') {
+        setStatus('error: ' + (s.last_error || 'unknown'), 'err');
+        hideGen();
+        make.disabled = false; return;
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  make.onclick = async () => {
+    make.disabled = true;
+    setStatus('submitting…', 'warn');
+    try {
+      const r = await fetch('/api/song', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          title: $('title').value,
+          style: $('style').value,
+          lyrics: $('lyrics').value,
+          duration: parseFloat($('duration').value) || 120,
+          bpm: parseFloat($('bpm').value) || null,
+        }),
+      });
+      const j = await r.json();
+      if (j.error){ setStatus(j.error, 'err'); make.disabled = false; return; }
+      poll(j.id);
+    } catch (e) {
+      setStatus('failed to submit: ' + e, 'err'); make.disabled = false;
+    }
+  };
+})();
+</script>
+</body>
+</html>
