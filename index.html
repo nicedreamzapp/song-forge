@@ -75,7 +75,17 @@
     50%     { box-shadow: 0 0 22px 4px rgba(233,210,139,.45); }
   }
 
-  audio { width: 100%; margin-top: 12px; filter: invert(.92) hue-rotate(180deg); }
+  audio { width: 100%; margin-top: 12px; filter: invert(.92) hue-rotate(180deg); position: relative; z-index: 2; }
+
+  /* 3D visualizer — sits behind everything when audio is playing, dim when paused */
+  #viz3d {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: 0; pointer-events: none;
+    opacity: 0; transition: opacity 1.2s ease;
+  }
+  #viz3d.active { opacity: 0.55; }
+  body { position: relative; }
+  body > main, body > header, body > .footer { position: relative; z-index: 1; }
 
   .lyrics { white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color:#aebed3;
     background: #08080b; border:1px solid var(--line); border-radius:8px; padding:10px 12px; max-height: 220px; overflow:auto;
@@ -367,6 +377,9 @@
     </div>
   </main>
   <div class="footer">ACE-Step 1.5 · MLX backend · all local</div>
+  <canvas id="viz3d"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="viz3d.js"></script>
 
 <script>
 (function(){
