@@ -1044,29 +1044,104 @@
   }
 
   /* ============================================================
-     FLOATING MINI-PLAYER — pulled out of the orphan status card.
-     Pinned above the dock; always reachable to play/pause/scrub.
+     CUSTOM MINI-PLAYER — pinned above the dock. Native HTML5 audio
+     controls vary too much across browsers, so we drive a custom
+     UI bound to the existing #player <audio> element.
      ============================================================ */
-  audio#player {
-    position: fixed !important;
-    left: 50% !important;
-    bottom: 108px !important;
-    transform: translateX(-50%) !important;
-    width: calc(100% - 64px) !important;
-    max-width: 680px !important;
-    z-index: 12 !important;
-    border-radius: 999px !important;
+  audio#player { display: none !important; }  /* hide native — we control via JS */
+
+  #miniplayer {
+    position: fixed; left: 50%; bottom: 108px; transform: translateX(-50%);
+    width: calc(100% - 48px); max-width: 700px;
+    z-index: 12;
+    background: linear-gradient(180deg, rgba(60,40,110,.62) 0%, rgba(15,10,30,.78) 100%);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(240,217,107,.32);
+    border-radius: 22px;
+    padding: 12px 18px 14px;
     box-shadow:
-      0 12px 40px rgba(0,0,0,.6),
-      0 0 40px rgba(170,130,230,.40),
-      inset 0 1px 0 rgba(255,247,212,.20) !important;
-    background: linear-gradient(180deg, rgba(60,40,110,.55) 0%, rgba(15,10,30,.70) 100%) !important;
-    backdrop-filter: blur(20px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+      inset 0 1px 0 rgba(255,247,212,.22),
+      inset 0 -1px 0 rgba(0,0,0,.40),
+      0 18px 44px rgba(0,0,0,.55),
+      0 0 50px rgba(170,130,230,.38);
+    display: none;  /* hidden until a song loads */
   }
-  /* Hide it when no audio is loaded yet OR when the HTML hidden attr is on */
-  audio#player[hidden]:not([src]) { display: none !important; }
-  audio#player:not([src]) { display: none !important; }
+  #miniplayer.show { display: block; }
+  #miniplayer .mp-title {
+    color: var(--ember-soft); font-weight: 600; font-size: 13px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-bottom: 8px;
+  }
+  #miniplayer .mp-scrub {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  #miniplayer .mp-scrub .mp-time {
+    color: var(--dim); font-size: 11px; min-width: 38px; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  #miniplayer .mp-scrub input[type=range] {
+    flex: 1; -webkit-appearance: none; height: 6px;
+    background: linear-gradient(90deg, #f0d96b var(--mp-pct,0%), rgba(255,255,255,.15) var(--mp-pct,0%));
+    border-radius: 3px; outline: none; cursor: pointer;
+  }
+  #miniplayer .mp-scrub input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: #fff7d4; border-radius: 50%;
+    box-shadow: 0 0 10px rgba(240,217,107,.7);
+    cursor: pointer;
+  }
+  #miniplayer .mp-controls {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  #miniplayer button {
+    background: rgba(240,217,107,.10);
+    border: 1px solid rgba(240,217,107,.40);
+    color: var(--ember-soft); cursor: pointer; font-family: inherit;
+    width: 38px; height: 38px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    transition: background .2s, border-color .2s, transform .1s, box-shadow .25s;
+  }
+  #miniplayer button:hover {
+    background: rgba(240,217,107,.22);
+    border-color: rgba(240,217,107,.75);
+    box-shadow: 0 0 22px rgba(240,217,107,.4);
+  }
+  #miniplayer button:active { transform: scale(.94); }
+  #miniplayer button.mp-play {
+    width: 52px; height: 52px; font-size: 18px;
+    background:
+      radial-gradient(ellipse 100% 60% at 50% -10%, rgba(255,247,212,.45) 0%, rgba(255,247,212,0) 65%),
+      linear-gradient(180deg, #5a3a8a 0%, #3a2470 50%, #1e1340 100%);
+    border-color: rgba(240,217,107,.85);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -2px 0 rgba(0,0,0,.45),
+      0 8px 22px rgba(0,0,0,.55),
+      0 0 32px rgba(170,130,230,.55);
+  }
+  #miniplayer button.mp-play:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -2px 0 rgba(0,0,0,.45),
+      0 12px 28px rgba(0,0,0,.6),
+      0 0 50px rgba(170,130,230,.85);
+  }
+  #miniplayer .mp-speed {
+    background: rgba(240,217,107,.12);
+    border: 1px solid rgba(240,217,107,.40);
+    color: #f0d96b;
+    width: auto; padding: 0 14px; height: 38px;
+    border-radius: 999px; font-size: 11px; letter-spacing: .08em; font-weight: 700;
+  }
+  #miniplayer .mp-close {
+    position: absolute; top: 8px; right: 10px;
+    width: 24px; height: 24px; font-size: 11px;
+    border-color: rgba(255,255,255,.18);
+    color: rgba(255,255,255,.6);
+  }
+  #miniplayer .mp-close:hover { color: #ffb0b0; border-color: rgba(220,80,80,.55); }
 
   /* Background base — replace ember-warm radials with cool teal/purple */
   html, body {
@@ -1333,7 +1408,7 @@
           </div>
         </div>
 
-      <audio id="player" controls preload="none" hidden style="margin-top:12px;"></audio>
+      <audio id="player" controls preload="metadata" hidden style="margin-top:12px;"></audio>
       <div id="usedLyrics" class="lyrics" hidden></div>
     </div>
   </div>
@@ -1357,6 +1432,24 @@
     </div>
   </div>
   <!-- /librarySheet -->
+
+  <!-- Mini-player — pinned above the dock when a song is loaded -->
+  <div id="miniplayer">
+    <button class="mp-close" id="mpClose" title="Close (stops playback)">✕</button>
+    <div class="mp-title" id="mpTitle">— now playing —</div>
+    <div class="mp-scrub">
+      <span class="mp-time" id="mpCur">0:00</span>
+      <input id="mpScrub" type="range" min="0" max="1000" value="0" step="1">
+      <span class="mp-time" id="mpTot">0:00</span>
+    </div>
+    <div class="mp-controls">
+      <button id="mpRewind" title="−15s">«15</button>
+      <button class="mp-play" id="mpPlay" title="Play / Pause">▶</button>
+      <button id="mpFwd" title="+15s">15»</button>
+      <button class="mp-speed" id="mpSpeed" title="Playback speed">1×</button>
+    </div>
+  </div>
+
   <canvas id="viz3d"></canvas>
   <script src="three.min.js"></script>
   <script src="viz3d.js"></script>
@@ -1838,9 +1931,91 @@
   };
 
   function playSong(s){
-    if (s.audio){ player.src = s.audio; player.hidden = false; player.play().catch(()=>{}); }
+    if (s.audio){
+      player.src = s.audio;
+      player.hidden = false;
+      player.play().catch(()=>{});
+      // surface the mini-player with the song title
+      const mp = document.getElementById('miniplayer');
+      const mpT = document.getElementById('mpTitle');
+      if (mp) mp.classList.add('show');
+      if (mpT) mpT.textContent = s.title || s.idea || s.style || 'now playing';
+    }
     if (s.lyrics){ used.textContent = s.lyrics; used.hidden = false; }
   }
+
+  // ============================================================
+  // Mini-player wiring — drives the existing #player <audio> via
+  // a custom UI pinned above the dock. Always-visible play/pause/
+  // scrub/±15s/speed controls regardless of which sheet is open.
+  // ============================================================
+  (function wireMiniPlayer(){
+    const mp        = document.getElementById('miniplayer');
+    const mpPlay    = document.getElementById('mpPlay');
+    const mpRewind  = document.getElementById('mpRewind');
+    const mpFwd     = document.getElementById('mpFwd');
+    const mpScrub   = document.getElementById('mpScrub');
+    const mpCur     = document.getElementById('mpCur');
+    const mpTot     = document.getElementById('mpTot');
+    const mpSpeed   = document.getElementById('mpSpeed');
+    const mpClose   = document.getElementById('mpClose');
+    if (!mp || !player) return;
+
+    const speeds = [1.0, 1.25, 1.5, 1.75, 2.0];
+    let speedIdx = 0;
+
+    const fmt = s => {
+      s = Math.max(0, Math.floor(s || 0));
+      return Math.floor(s/60) + ':' + (s%60).toString().padStart(2,'0');
+    };
+
+    mpPlay.onclick = () => {
+      if (player.paused) { player.play().catch(()=>{}); }
+      else                 { player.pause(); }
+    };
+    mpRewind.onclick = () => {
+      const cur = isFinite(player.currentTime) ? player.currentTime : 0;
+      player.currentTime = Math.max(0, cur - 15);
+    };
+    mpFwd.onclick    = () => {
+      // Drop the upper-bound math entirely — let the browser clamp to duration.
+      // Earlier, when duration was NaN or 0 mid-load, Math.min clamped to 0
+      // and restarted the song. Now we just add 15 and trust the browser.
+      const cur = isFinite(player.currentTime) ? player.currentTime : 0;
+      try {
+        player.currentTime = cur + 15;
+      } catch (e) {
+        console.error('+15s seek failed:', e);
+      }
+    };
+    mpSpeed.onclick  = () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      player.playbackRate = speeds[speedIdx];
+      mpSpeed.textContent = (speeds[speedIdx] === 1 ? '1×' : speeds[speedIdx] + '×');
+    };
+    mpClose.onclick  = () => {
+      player.pause();
+      player.removeAttribute('src');
+      player.load();
+      mp.classList.remove('show');
+    };
+    mpScrub.oninput  = (e) => {
+      const v = parseInt(e.target.value, 10) || 0;
+      if (player.duration) player.currentTime = (v / 1000) * player.duration;
+    };
+
+    player.addEventListener('play',   () => { mpPlay.textContent = '⏸'; mp.classList.add('show'); });
+    player.addEventListener('pause',  () => { mpPlay.textContent = '▶'; });
+    player.addEventListener('ended',  () => { mpPlay.textContent = '▶'; });
+    player.addEventListener('timeupdate', () => {
+      const d = player.duration || 0, c = player.currentTime || 0;
+      mpCur.textContent = fmt(c);
+      mpTot.textContent = fmt(d);
+      const pct = d ? (c/d) * 1000 : 0;
+      mpScrub.value = pct;
+      mpScrub.style.setProperty('--mp-pct', (pct/10) + '%');
+    });
+  })();
 
   async function poll(id){
     const startedAt = Date.now();

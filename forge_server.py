@@ -682,6 +682,85 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _file_ranged(self, path: Path, ctype: str):
+        """Stream `path` honoring HTTP Range requests so browsers can seek
+        in <audio>/<video> tags. Without this, seeking restarts the file."""
+        try:
+            size = path.stat().st_size
+        except FileNotFoundError:
+            self.send_error(404); return
+
+        rng = self.headers.get("Range") or self.headers.get("range")
+        start, end = 0, size - 1
+        partial = False
+
+        if rng and rng.startswith("bytes="):
+            spec = rng[6:].split(",", 1)[0].strip()
+            if "-" in spec:
+                lo, hi = spec.split("-", 1)
+                try:
+                    if lo == "" and hi:
+                        # suffix: last N bytes
+                        n = int(hi)
+                        start = max(0, size - n)
+                        end   = size - 1
+                    else:
+                        start = int(lo)
+                        end   = int(hi) if hi else size - 1
+                    end = min(end, size - 1)
+                    if start > end or start >= size:
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{size}")
+                        self.end_headers()
+                        return
+                    partial = True
+                except ValueError:
+                    partial = False
+                    start, end = 0, size - 1
+
+        length = end - start + 1
+        if partial:
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        else:
+            self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(length))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+
+        # Stream in chunks so large files don't blow memory.
+        with open(path, "rb") as f:
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                try:
+                    self.wfile.write(chunk)
+                except (ConnectionResetError, BrokenPipeError):
+                    return
+                remaining -= len(chunk)
+
+    def do_HEAD(self):
+        # Browsers probe with HEAD before seeking. Just answer with sizes.
+        u = urlparse(self.path)
+        if u.path.startswith("/audio/"):
+            name = u.path.split("/", 2)[-1]
+            p = OUT / name
+            if not p.is_file():
+                self.send_error(404); return
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/wav")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(p.stat().st_size))
+            self.end_headers()
+            return
+        # default: 200 empty for known routes, 404 otherwise
+        self.send_error(404)
+
     def log_message(self, fmt, *args):  # quieter logs
         # args[0] is the requestline string for log_request, but
         # log_error passes (int_code, str_message) — guard against both.
@@ -750,7 +829,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(j)
         if u.path.startswith("/audio/"):
             name = u.path.split("/", 2)[-1]
-            return self._file(OUT / name, "audio/wav")
+            return self._file_ranged(OUT / name, "audio/wav")
         self.send_error(404)
 
     def do_DELETE(self):

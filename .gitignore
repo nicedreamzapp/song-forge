@@ -25,3 +25,6 @@ voice_swap_test/
 # editor backups
 *.bak
 *.bak.*
+
+# personal scratch
+lyrics_for_*.txt

@@ -8,6 +8,14 @@ Everything happens on your Mac. Nothing ever leaves it.
 
 ---
 
+## 📺 Watch it in action
+
+**[FREE Local AI Music Generator — Type a Vibe, Get a Whole Song in 15 Seconds (No Cloud)](https://www.youtube.com/watch?v=mD3w2uqKTYg)**
+
+A full walkthrough on YouTube — describing a vibe, generating the song, swapping in a cloned voice.
+
+---
+
 ## 🎬 What it actually does
 
 - **You describe a song** — pick a genre preset, mix in mood / era / tempo / reference artists, fine-tune the vocal arrangement.
