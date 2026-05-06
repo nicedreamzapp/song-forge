@@ -10,9 +10,9 @@ Everything happens on your Mac. Nothing ever leaves it.
 
 ## 📺 Watch it in action
 
-**[FREE Local AI Music Generator — Type a Vibe, Get a Whole Song in 15 Seconds (No Cloud)](https://youtu.be/-o_4-Ka-H38)**
+[![Song Forge — FREE Local AI Music Generator (No Cloud)](https://img.youtube.com/vi/-o_4-Ka-H38/maxresdefault.jpg)](https://youtu.be/-o_4-Ka-H38)
 
-A full walkthrough on YouTube — describing a vibe, generating the song, swapping in a cloned voice.
+A full walkthrough on YouTube — describing a vibe, generating the song, swapping in a cloned voice. Click the thumbnail above to watch.
 
 ---
 
