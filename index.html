@@ -21,7 +21,14 @@
       radial-gradient(ellipse 1200px 700px at 50% 105%, rgba(255,120,30,0.18) 0%, rgba(255,120,30,0) 60%),
       radial-gradient(ellipse at top, #16121a 0%, #06040a 65%);
     color: #eee; font-family: -apple-system, system-ui, "SF Pro Text", Helvetica, Arial, sans-serif; }
-  body { display: flex; flex-direction: column; min-height: 100vh; }
+  body { display: flex; flex-direction: column; min-height: 100vh;
+    /* Bottom dock takes ~70px. When the mini-player is up (.has-player),
+       we reserve enough extra room for it (~150px) so neither floats
+       cover the last library rows. Smooth transition to feel deliberate. */
+    padding-bottom: 90px;
+    box-sizing: border-box;
+    transition: padding-bottom .25s ease; }
+  body.has-player { padding-bottom: 240px; }
   header { padding: 18px 24px 8px; display:flex; align-items:center; gap:14px; }
   header h1 { margin:0; font-size:24px; letter-spacing:.32em; font-weight:800;
     background: linear-gradient(90deg, var(--gold2), var(--ember-soft) 50%, var(--gold2));
@@ -244,9 +251,15 @@
     position: fixed; left: 50%; bottom: 92px; transform: translate(-50%, 110vh);
     width: calc(100% - 32px); max-width: 760px; max-height: 78vh; overflow: auto;
     z-index: 8;
-    transition: transform .42s cubic-bezier(.18,.7,.3,1);
+    transition: transform .42s cubic-bezier(.18,.7,.3,1),
+                bottom .25s ease, max-height .25s ease;
   }
   .sheet.show { transform: translate(-50%, 0); }
+  /* When the mini-player is showing, lift the sheet's bottom edge ABOVE the
+     mini-player so the last library rows aren't covered. The mini-player sits
+     at bottom:108px and is ~120px tall → its top is ~228px from viewport
+     bottom; lift the sheet to 240px to clear it with breathing room. */
+  body.has-player .sheet { bottom: 240px; max-height: calc(78vh - 150px); }
   .sheet::-webkit-scrollbar { width: 8px; }
   .sheet::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
   .sheet .sheet-close {
@@ -294,6 +307,24 @@
     50%     { box-shadow: 0 0 28px rgba(233,210,139,.55); }
   }
   .play-indicator { display:none; align-items:center; gap:3px; margin-right:6px; color:var(--gold); font-size:11px; }
+  /* Forge library 5-star widget — clicks PATCH /api/song/{id} {rating:N} */
+  .forge-stars { display: inline-flex; gap: 1px; flex-shrink: 0; margin: 0 4px; }
+  .forge-stars .fst {
+    background: none; border: none; padding: 0 1px; cursor: pointer;
+    color: rgba(255,255,255,.18); font-size: 14px; line-height: 1;
+    font-family: inherit;
+    transition: color .12s ease, text-shadow .12s ease, transform .08s ease;
+  }
+  .forge-stars .fst.lit { color: #f0d96b; text-shadow: 0 0 6px rgba(240,217,107,.55); }
+  .forge-stars .fst:hover { transform: scale(1.18); }
+  .pub-pill {
+    display: inline-block; margin-left: 6px;
+    background: rgba(60,200,120,.20); color: #5fe69a;
+    border: 1px solid rgba(60,200,120,.45);
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 9px; font-weight: 700; letter-spacing: .12em;
+    vertical-align: 1px;
+  }
   .play-indicator .bar { width:3px; background:var(--gold); border-radius:2px; animation: barWave 1s ease-in-out infinite; }
   .play-indicator .bar:nth-child(1) { height:7px;  animation-delay:0s;   }
   .play-indicator .bar:nth-child(2) { height:11px; animation-delay:.18s; }
@@ -1054,9 +1085,11 @@
     position: fixed; left: 50%; bottom: 108px; transform: translateX(-50%);
     width: calc(100% - 48px); max-width: 700px;
     z-index: 12;
-    background: linear-gradient(180deg, rgba(60,40,110,.62) 0%, rgba(15,10,30,.78) 100%);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    /* Heavily translucent so library rows behind it stay legible. The strong
+       backdrop-blur keeps controls readable without making the panel opaque. */
+    background: linear-gradient(180deg, rgba(60,40,110,.28) 0%, rgba(15,10,30,.38) 100%);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
     border: 1px solid rgba(240,217,107,.32);
     border-radius: 22px;
     padding: 12px 18px 14px;
@@ -1109,6 +1142,11 @@
     box-shadow: 0 0 22px rgba(240,217,107,.4);
   }
   #miniplayer button:active { transform: scale(.94); }
+  #miniplayer button.mp-on {
+    background: rgba(240,217,107,.30);
+    border-color: rgba(240,217,107,.95);
+    box-shadow: 0 0 26px rgba(240,217,107,.55), inset 0 0 8px rgba(240,217,107,.35);
+  }
   #miniplayer button.mp-play {
     width: 52px; height: 52px; font-size: 18px;
     background:
@@ -1142,6 +1180,114 @@
     color: rgba(255,255,255,.6);
   }
   #miniplayer .mp-close:hover { color: #ffb0b0; border-color: rgba(220,80,80,.55); }
+
+  /* ============================================================
+     KARAOKE — Apple-Music-style scrolling synced lyrics overlay.
+     ============================================================ */
+  /* Compact by default — a corner panel so the visualizer stays in view.
+     Add .full (⤢ button) for the fullscreen karaoke-game mode. */
+  .karaoke {
+    position: fixed; top: 64px; right: 16px; z-index: 50;
+    width: min(34vw, 480px); min-width: 300px; height: 34vh;
+    background: radial-gradient(ellipse at top, rgba(60,40,110,.35) 0%, rgba(8,6,16,.72) 70%);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid rgba(240,217,107,.30);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    display: none;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .karaoke.full {
+    inset: 0; width: auto; min-width: 0; height: auto;
+    border: none; border-radius: 0; box-shadow: none;
+    background: radial-gradient(ellipse at top, rgba(60,40,110,.20) 0%, rgba(8,6,16,.45) 70%);
+  }
+  .karaoke .kk-close, .karaoke .kk-expand { pointer-events: auto; }
+  .karaoke.show { display: block; }
+  .karaoke .kk-close, .karaoke .kk-expand {
+    position: absolute; top: 10px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(240,217,107,.45);
+    color: var(--ember-soft); font-size: 13px; cursor: pointer;
+    z-index: 2;
+  }
+  .karaoke .kk-close  { right: 12px; }
+  .karaoke .kk-expand { right: 48px; }
+  .karaoke.full .kk-close, .karaoke.full .kk-expand {
+    top: 18px; width: 38px; height: 38px; font-size: 16px;
+  }
+  .karaoke.full .kk-close  { right: 22px; }
+  .karaoke.full .kk-expand { right: 70px; }
+  .karaoke .kk-title {
+    position: absolute; top: 16px; left: 16px; right: 90px;
+    text-align: left;
+    color: var(--ember-soft); font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    opacity: .82;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .karaoke.full .kk-title {
+    top: 22px; left: 0; right: 0;
+    text-align: center; font-size: 13px;
+  }
+  .karaoke .kk-lines {
+    position: absolute; left: 0; right: 0;
+    top: 50%;
+    transform: translateY(0);
+    transition: transform .42s cubic-bezier(.22,.61,.36,1);
+    text-align: center;
+    padding: 0 32px;
+    pointer-events: none;
+  }
+  .karaoke .kk-line {
+    font-family: ui-rounded, -apple-system, system-ui, sans-serif;
+    font-size: 17px; line-height: 1.35; font-weight: 700;
+    color: rgba(255,247,212,.22);
+    margin: 10px 0;
+    transition: color .35s ease, transform .35s ease, filter .35s ease;
+    text-shadow: 0 0 18px rgba(0,0,0,.4);
+    filter: blur(0.5px);
+  }
+  .karaoke.full .kk-line { font-size: 28px; margin: 18px 0; }
+  .karaoke .kk-line.active {
+    color: rgba(255,247,212,.30);
+    transform: scale(1.08);
+    text-shadow: 0 4px 16px rgba(0,0,0,.55);
+    filter: blur(0);
+  }
+  .karaoke .kk-line.past   { color: rgba(240,217,107,.45); }
+  /* Per-letter highlighting inside the active line. */
+  .karaoke .kk-line.active .kk-word { display: inline-block; margin: 0 4px; }
+  .karaoke .kk-line.active .kk-letter {
+    display: inline-block;
+    color: rgba(255,247,212,.28);
+    transition: color .12s linear, text-shadow .12s linear;
+  }
+  .karaoke .kk-line.active .kk-letter.sung {
+    color: rgba(240,217,107,.95);
+    text-shadow: 0 0 14px rgba(240,217,107,.5), 0 4px 16px rgba(0,0,0,.55);
+  }
+  .karaoke .kk-line.active .kk-letter.live {
+    color: #fff;
+    text-shadow:
+      0 0 18px rgba(255,235,180,.95),
+      0 0 36px rgba(240,217,107,.55),
+      0 4px 16px rgba(0,0,0,.55);
+  }
+  .karaoke .kk-empty {
+    color: var(--dim); font-size: 13px; padding: 24px;
+  }
+  .karaoke .kk-loading {
+    color: var(--ember-soft); font-size: 13px; padding: 24px;
+    animation: kkPulse 1.4s ease-in-out infinite;
+  }
+  .karaoke.full .kk-empty, .karaoke.full .kk-loading { font-size: 16px; padding: 40px; }
+  @keyframes kkPulse {
+    0%, 100% { opacity: .55; } 50% { opacity: 1; }
+  }
 
   /* Background base — replace ember-warm radials with cool teal/purple */
   html, body {
@@ -1446,7 +1592,19 @@
       <button id="mpRewind" title="−15s">«15</button>
       <button class="mp-play" id="mpPlay" title="Play / Pause">▶</button>
       <button id="mpFwd" title="+15s">15»</button>
+      <button id="mpShuffle" title="Shuffle — play the whole library in random order, no repeats">🔀</button>
       <button class="mp-speed" id="mpSpeed" title="Playback speed">1×</button>
+      <button id="mpLyrics" title="Synced lyrics (karaoke)">🎤</button>
+    </div>
+  </div>
+
+  <!-- Karaoke overlay — Apple-Music-style scrolling lyrics -->
+  <div id="karaoke" class="karaoke">
+    <button class="kk-expand" id="kkExpand" title="Expand to full screen">⤢</button>
+    <button class="kk-close" id="kkClose" title="Close">✕</button>
+    <div class="kk-title" id="kkTitle">— now playing —</div>
+    <div class="kk-lines" id="kkLines">
+      <div class="kk-empty">Tap 🎤 to sync lyrics for this song.</div>
     </div>
   </div>
 
@@ -1476,7 +1634,7 @@
     Object.entries(dockBtns).forEach(([k, b]) => b && b.classList.toggle('active', k === name));
     backdrop.classList.add('show');
     document.body.classList.toggle('make-open', name === 'make');
-    if (name === 'library') refreshRecent();
+    if (name === 'library') refreshRecent().then(scrollToPlaying);
   }
   function closeSheets() {
     Object.values(sheets).forEach(el => el.classList.remove('show'));
@@ -1642,16 +1800,57 @@
 
   // Track which library song is currently playing so we can highlight its row.
   let currentlyPlayingId = null;
+  // Continuous play state. lastPlayedId survives pause/ended (unlike
+  // currentlyPlayingId) so auto-advance knows where it left off.
+  let librarySongs = [];
+  let lastPlayedId = null;
+  let shuffleOn = false;
+  let shuffleQueue = [];   // ids not yet played this shuffle round
   function applyPlayingHighlight(){
     document.querySelectorAll('.song').forEach(el => el.classList.remove('playing'));
     if (!currentlyPlayingId) return;
     const btn = document.querySelector(`.song button.play[data-id="${currentlyPlayingId}"]`);
     if (btn) btn.closest('.song').classList.add('playing');
   }
+  // Scroll the library list so the row that's playing is centered on screen —
+  // without this, auto-advance leaves you hunting for what's playing.
+  function scrollToPlaying(){
+    if (!currentlyPlayingId) return;
+    const btn = document.querySelector(`.song button.play[data-id="${currentlyPlayingId}"]`);
+    if (btn) btn.closest('.song').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
   // The browser's <audio> element fires these on every state change.
   player.addEventListener('play',   () => applyPlayingHighlight());
   player.addEventListener('pause',  () => { currentlyPlayingId = null; applyPlayingHighlight(); });
   player.addEventListener('ended',  () => { currentlyPlayingId = null; applyPlayingHighlight(); });
+
+  // Continuous play: when a song finishes, move to the next one — library
+  // order normally, or through a no-repeat shuffle queue when 🔀 is on.
+  function playNext(){
+    if (!librarySongs.length) return;
+    let next = null;
+    if (shuffleOn) {
+      if (!shuffleQueue.length) {
+        shuffleQueue = librarySongs.map(s => s.id);
+        for (let i = shuffleQueue.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffleQueue[i], shuffleQueue[j]] = [shuffleQueue[j], shuffleQueue[i]];
+        }
+        // new round shouldn't open with the song that just ended
+        if (shuffleQueue.length > 1 && shuffleQueue[0] === lastPlayedId) {
+          shuffleQueue.push(shuffleQueue.shift());
+        }
+      }
+      const id = shuffleQueue.shift();
+      next = librarySongs.find(s => s.id === id);
+    } else {
+      const idx = librarySongs.findIndex(s => s.id === lastPlayedId);
+      next = librarySongs[(idx + 1) % librarySongs.length];
+    }
+    if (next) { playSong(next); applyPlayingHighlight(); }
+  }
+  player.addEventListener('ended', playNext);
+
   function songFilename(s){
     const base = (s.title || s.idea || 'song').replace(/[^a-z0-9_\- ]+/gi,'').trim().slice(0,80) || 'song';
     return base + '.wav';
@@ -1661,13 +1860,22 @@
     try {
       const r = await fetch('/api/songs'); const j = await r.json();
       recent.innerHTML = '';
-      (j.songs || []).filter(s => s.status === 'done').forEach(s => {
+      librarySongs = (j.songs || []).filter(s => s.status === 'done');
+      shuffleQueue = shuffleQueue.filter(id => librarySongs.some(s => s.id === id));
+      librarySongs.forEach(s => {
         const div = document.createElement('div');
         div.className = 'song';
         const t = new Date(s.created_at*1000).toLocaleString();
         const displayName = s.title || s.idea || s.style || 'untitled';
         const dur = s.duration ? ` · ${Math.round(s.duration)}s` : '';
         const bpm = s.bpm ? ` · ${s.bpm}bpm` : '';
+        const r = Math.max(0, Math.min(5, parseInt(s.rating || 0, 10) || 0));
+        let starsHtml = '<span class="forge-stars" data-id="' + s.id + '">';
+        for (let i = 1; i <= 5; i++) {
+          starsHtml += `<button type="button" class="fst${i<=r?' lit':''}" data-r="${i}" data-id="${s.id}" title="${i} star${i>1?'s':''}">★</button>`;
+        }
+        starsHtml += '</span>';
+        const pubBadge = s.published ? '<span class="pub-pill" title="Published on nicedreamzwholesale.com/songs">LIVE</span>' : '';
         div.innerHTML = `
           <div style="display:flex;gap:10px;align-items:center;width:100%;">
             <span class="play-indicator" aria-hidden="true">
@@ -1675,8 +1883,10 @@
             </span>
             <div class="name" data-id="${s.id}" title="Click to expand lyrics" style="flex:1;font-size:12px;color:#c9c9d2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
               <strong style="color:#e9d28b;">${escapeHtml(displayName).slice(0,90)}</strong>
+              ${pubBadge}
               <span style="color:var(--dim);">· ${t}${dur}${bpm}</span>
             </div>
+            ${starsHtml}
             <button class="play"   data-id="${s.id}"><span class="ico">▶</span> Play</button>
             <a      class="btn dl" href="/audio/${s.id}.wav" download="${escapeHtml(songFilename(s))}"><span class="ico">⬇</span> Save</a>
             <button class="swap"   data-id="${s.id}"><span class="ico">🎤</span> Voice</button>
@@ -1687,6 +1897,29 @@
           <div class="song-lyrics" id="lyr-${s.id}">${escapeHtml(s.lyrics || '(no lyrics stored)')}</div>
         `;
         recent.appendChild(div);
+      });
+      // Re-render wipes the row classes — restore the playing highlight.
+      applyPlayingHighlight();
+      // Stars: click sets rating; click same star to clear.
+      recent.querySelectorAll('.forge-stars .fst').forEach(b => b.onclick = async (e) => {
+        e.stopPropagation();
+        const id = b.dataset.id;
+        let target = parseInt(b.dataset.r, 10);
+        const wrap = b.closest('.forge-stars');
+        const cur = wrap.querySelectorAll('.fst.lit').length;
+        if (cur === target) target = 0;
+        // Optimistic UI
+        wrap.querySelectorAll('.fst').forEach((el, idx) => el.classList.toggle('lit', (idx+1) <= target));
+        try {
+          const r = await fetch('/api/song/' + id, {
+            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ rating: target }),
+          });
+          if (!r.ok) throw new Error('rating save failed');
+        } catch (err) {
+          alert('Rating save failed: ' + err.message);
+          refreshRecent();
+        }
       });
       recent.querySelectorAll('.name').forEach(el => el.onclick = () => {
         document.getElementById('lyr-' + el.dataset.id).classList.toggle('open');
@@ -1725,8 +1958,11 @@
         });
         const j2 = await r2.json();
         if (j2.error) { alert('Swap failed: ' + j2.error); return; }
-        alert('Voice swap started — ~1 minute. New entry will appear in the library when ready.');
-        refreshRecent();
+        // Live progress through the swap pipeline, same UI as a fresh song.
+        make.disabled = true;
+        showGen(0, 'voice swap queued');
+        setStatus('voice swap started…', 'warn');
+        poll(j2.id, { swap: true });
       });
       recent.querySelectorAll('button.rename').forEach(b => b.onclick = async () => {
         const cur = b.parentElement.querySelector('.name strong')?.textContent || '';
@@ -1930,8 +2166,11 @@
     alert('Removed ' + j.removed + ' files, freed ' + j.freed_mb + ' MB.');
   };
 
-  function playSong(s){
+  function playSong(s, opts){
+    opts = opts || {};
     if (s.audio){
+      lastPlayedId = s.id;
+      currentlyPlayingId = s.id;
       player.src = s.audio;
       player.hidden = false;
       player.play().catch(()=>{});
@@ -1939,9 +2178,18 @@
       const mp = document.getElementById('miniplayer');
       const mpT = document.getElementById('mpTitle');
       if (mp) mp.classList.add('show');
+      // Body class drives extra bottom padding so the mini-player can't hide
+      // the last library rows behind it. Removed when mini-player closes.
+      document.body.classList.add('has-player');
       if (mpT) mpT.textContent = s.title || s.idea || s.style || 'now playing';
+      // Playback mode: sheets slide away so the visualizer is front and
+      // center; the mini-player stays pinned. Reopening the library mid-song
+      // scrolls straight to the highlighted playing row.
+      closeSheets();
     }
-    if (s.lyrics){ used.textContent = s.lyrics; used.hidden = false; }
+    // Stay on the library list during playback — the lyrics box only opens on
+    // a fresh generation (showLyrics). Library lyrics live behind row-click/🎤.
+    if (s.lyrics && opts.showLyrics){ used.textContent = s.lyrics; used.hidden = false; }
   }
 
   // ============================================================
@@ -1958,6 +2206,7 @@
     const mpCur     = document.getElementById('mpCur');
     const mpTot     = document.getElementById('mpTot');
     const mpSpeed   = document.getElementById('mpSpeed');
+    const mpShuffle = document.getElementById('mpShuffle');
     const mpClose   = document.getElementById('mpClose');
     if (!mp || !player) return;
 
@@ -1988,6 +2237,13 @@
         console.error('+15s seek failed:', e);
       }
     };
+    mpShuffle.onclick = () => {
+      shuffleOn = !shuffleOn;
+      shuffleQueue = [];   // fresh round whenever the mode flips
+      mpShuffle.classList.toggle('mp-on', shuffleOn);
+      // flipping shuffle on while nothing is playing kicks off a play-through
+      if (shuffleOn && (player.paused || !player.src)) playNext();
+    };
     mpSpeed.onclick  = () => {
       speedIdx = (speedIdx + 1) % speeds.length;
       player.playbackRate = speeds[speedIdx];
@@ -1998,6 +2254,7 @@
       player.removeAttribute('src');
       player.load();
       mp.classList.remove('show');
+      document.body.classList.remove('has-player');
     };
     mpScrub.oninput  = (e) => {
       const v = parseInt(e.target.value, 10) || 0;
@@ -2017,7 +2274,208 @@
     });
   })();
 
-  async function poll(id){
+  // ============================================================
+  // Karaoke — Apple-Music-style synced lyrics overlay
+  // ============================================================
+  (function wireKaraoke(){
+    const overlay   = document.getElementById('karaoke');
+    const closeBtn  = document.getElementById('kkClose');
+    const titleEl   = document.getElementById('kkTitle');
+    const linesWrap = document.getElementById('kkLines');
+    const openBtn   = document.getElementById('mpLyrics');
+    if (!overlay || !openBtn) return;
+
+    let activeId = null;       // id whose timing is currently loaded
+    let timing = null;         // {lines: [{text,start,end,words?}], ...}
+    let lineEls = [];          // DOM nodes for each line, indexed
+    let lastIdx = -1;
+    let activeWords = [];      // [{word, span, letters}] for the active line
+    let lastWordIdx = -1;
+    let lastLiveLetter = -1;
+
+    function escHtml(s){
+      return String(s||'').replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    }
+
+    function setLines(html){
+      linesWrap.innerHTML = html;
+      lineEls = Array.from(linesWrap.querySelectorAll('.kk-line'));
+      lastIdx = -1; activeWords = []; lastWordIdx = -1; lastLiveLetter = -1;
+    }
+
+    function buildLetterHtml(line){
+      if (!line.words || !line.words.length) return escHtml(line.text);
+      return line.words.map((w, wi) => {
+        const letters = (w.text || '').split('').map(ch =>
+          `<span class="kk-letter">${escHtml(ch)}</span>`
+        ).join('');
+        return `<span class="kk-word" data-wi="${wi}">${letters}</span>`;
+      }).join(' ');
+    }
+
+    function renderLines(){
+      setLines(timing.lines.map((l, i) =>
+        `<div class="kk-line" data-i="${i}">${escHtml(l.text)}</div>`
+      ).join(''));
+      paint(player.currentTime || 0);
+    }
+
+    function makeLineActive(idx){
+      const el = lineEls[idx];
+      if (!el) return;
+      el.innerHTML = buildLetterHtml(timing.lines[idx]);
+      el.classList.add('active');
+      activeWords = [];
+      const line = timing.lines[idx];
+      if (line.words && line.words.length){
+        el.querySelectorAll('.kk-word').forEach((ws, wi) => {
+          activeWords.push({
+            word: line.words[wi],
+            span: ws,
+            letters: Array.from(ws.querySelectorAll('.kk-letter')),
+          });
+        });
+      }
+      lastWordIdx = -1; lastLiveLetter = -1;
+    }
+
+    function paint(t){
+      if (!timing || !lineEls.length) return;
+      let idx = -1;
+      for (let i = 0; i < timing.lines.length; i++){
+        const l = timing.lines[i];
+        if (t >= l.start && t < l.end) { idx = i; break; }
+        if (t < l.start) { idx = i - 1; break; }
+        if (i === timing.lines.length - 1 && t >= l.end) { idx = i; }
+      }
+
+      if (idx !== lastIdx) {
+        // unflag old active line — collapse back to plain text
+        if (lastIdx >= 0 && lineEls[lastIdx]){
+          lineEls[lastIdx].classList.remove('active');
+          lineEls[lastIdx].classList.add('past');
+          lineEls[lastIdx].textContent = timing.lines[lastIdx].text;
+        }
+        lastIdx = idx;
+        lineEls.forEach((el, i) => { el.classList.toggle('past', i < idx); });
+        if (idx >= 0) makeLineActive(idx);
+        const active = lineEls[idx];
+        if (active){
+          const wrapRect = linesWrap.getBoundingClientRect();
+          const lineRect = active.getBoundingClientRect();
+          const offset = lineRect.top - wrapRect.top + lineRect.height / 2;
+          const desired = -(offset);
+          linesWrap.style.transform = `translateY(${desired}px)`;
+        }
+      }
+
+      if (idx < 0 || !activeWords.length) return;
+
+      // Find current word inside active line.
+      let wi = -1;
+      for (let i = 0; i < activeWords.length; i++){
+        const w = activeWords[i].word;
+        if (t >= w.start && t < w.end) { wi = i; break; }
+        if (t < w.start) { wi = i - 1; break; }
+        if (i === activeWords.length - 1 && t >= w.end) { wi = i; }
+      }
+
+      if (wi !== lastWordIdx) {
+        lastWordIdx = wi;
+        activeWords.forEach((aw, i) => {
+          if (i < wi) aw.letters.forEach(l => { l.classList.add('sung'); l.classList.remove('live'); });
+          else if (i > wi) aw.letters.forEach(l => l.classList.remove('sung','live'));
+        });
+        lastLiveLetter = -1;
+      }
+      if (wi < 0) return;
+      const cur = activeWords[wi];
+      const w = cur.word;
+      const span = (w.end - w.start) || 0.001;
+      let frac = (t - w.start) / span;
+      if (frac < 0) frac = 0; else if (frac > 1) frac = 1;
+      const n = cur.letters.length || 1;
+      const liveIdx = Math.min(n - 1, Math.floor(frac * n));
+      if (liveIdx === lastLiveLetter) return;
+      lastLiveLetter = liveIdx;
+      cur.letters.forEach((l, i) => {
+        l.classList.toggle('sung', i < liveIdx);
+        l.classList.toggle('live', i === liveIdx);
+      });
+    }
+
+    async function loadTiming(jid){
+      activeId = jid;
+      timing = null;
+      lineEls = [];
+      const titleNow = document.getElementById('mpTitle');
+      titleEl.textContent = titleNow ? titleNow.textContent : 'now playing';
+      setLines('<div class="kk-loading">Listening to the song & syncing lyrics…</div>');
+
+      // Cached?
+      let r = await fetch('/api/lyrics_sync/' + jid);
+      if (r.status === 404) {
+        // Generate
+        r = await fetch('/api/lyrics_sync/' + jid, { method: 'POST' });
+      }
+      if (!r.ok) {
+        setLines('<div class="kk-empty">Could not generate sync — make sure the song is finished.</div>');
+        return;
+      }
+      const j = await r.json();
+      if (!j.lines || !j.lines.length) {
+        setLines('<div class="kk-empty">No lyric lines found.</div>');
+        return;
+      }
+      timing = j;
+      renderLines();
+    }
+
+    openBtn.onclick = async () => {
+      if (!currentlyPlayingId) {
+        // No active song — just show a hint
+        setLines('<div class="kk-empty">Play a song first, then tap 🎤 again.</div>');
+        overlay.classList.add('show');
+        return;
+      }
+      overlay.classList.add('show');
+      if (activeId !== currentlyPlayingId || !timing) {
+        await loadTiming(currentlyPlayingId);
+      } else {
+        paint(player.currentTime || 0);
+      }
+    };
+    closeBtn.onclick = () => overlay.classList.remove('show');
+
+    const expandBtn = document.getElementById('kkExpand');
+    expandBtn.onclick = () => {
+      const full = overlay.classList.toggle('full');
+      expandBtn.textContent = full ? '⤡' : '⤢';
+      expandBtn.title = full ? 'Shrink to corner' : 'Expand to full screen';
+    };
+
+    player.addEventListener('timeupdate', () => {
+      if (!overlay.classList.contains('show')) return;
+      paint(player.currentTime || 0);
+    });
+
+    // Auto-open karaoke overlay whenever a song starts playing,
+    // so lyrics appear over the visualizer without the user tapping 🎤.
+    player.addEventListener('play', async () => {
+      if (!currentlyPlayingId) return;
+      overlay.classList.add('show');
+      if (activeId !== currentlyPlayingId || !timing) {
+        await loadTiming(currentlyPlayingId);
+      } else {
+        paint(player.currentTime || 0);
+      }
+    });
+  })();
+
+  async function poll(id, opts){
+    opts = opts || {};
+    const isSwap = !!opts.swap;
+    const phase = isSwap ? 'voice swap' : 'generating';
     const startedAt = Date.now();
     while (true){
       const r = await fetch('/api/song/' + id);
@@ -2028,18 +2486,50 @@
       const stageText = (s.stage || '').toString().slice(0, 60);
 
       if (s.status === 'queued') {
-        setStatus(`queued · waiting for ACE-Step · ${elapsed}`, 'warn');
-        showGen(0, 'queued');
+        setStatus(`${phase} queued · ${elapsed}`, 'warn');
+        showGen(0, stageText || 'queued');
       } else if (s.status === 'running') {
         const elapsedMs = Date.now() - startedAt;
-        const etaStr = (pct > 2) ? fmtEta(elapsedMs * (100 - pct) / pct) : '—';
-        setStatus(`generating · ${pct}% · ${elapsed} elapsed · ETA ${etaStr}`, 'warn');
-        showGen(pct, stageText || 'generating');
+        // Stage-aware ETA. The voice-swap pipeline runs three phases at very
+        // different speeds, so naive linear extrapolation (elapsed * (100-pct)
+        // / pct) is wildly off whenever you cross a phase boundary. Estimate
+        // each phase from typical local timings:
+        //   0–50%   demucs split          ~30s
+        //   50–85%  seed-vc voice convert ~3–5 min   (the slow boy)
+        //   85–100% ffmpeg mix            ~15s
+        // ACE-Step generation (no swap) is roughly linear so we keep the
+        // simple math when no swap stage indicator is present.
+        const stage = (stageText || '').toLowerCase();
+        let etaStr;
+        if (stage.includes('loading seed-vc model')) {
+          etaStr = fmtEta(45000);  // ~45s typical model load
+        } else if (stage.includes('seed-vc') && pct >= 50) {
+          const remainingPct = Math.max(85 - pct, 0);
+          // empirically seed-vc moves ~7%/min on this machine
+          etaStr = fmtEta(remainingPct / 7 * 60000 + 15000);
+        } else if (stage.includes('mixing') || stage.includes('ffmpeg') || pct >= 85) {
+          etaStr = fmtEta(15000);
+        } else if (stage.includes('demucs') || stage.includes('splitting')) {
+          etaStr = fmtEta(30000);
+        } else if (pct > 2) {
+          etaStr = fmtEta(elapsedMs * (100 - pct) / pct);
+        } else {
+          etaStr = '—';
+        }
+        setStatus(`${phase} · ${pct}% · ${elapsed} elapsed · ETA ${etaStr}`, 'warn');
+        showGen(pct, stageText || phase);
       } else if (s.status === 'done') {
+        // If the song has a queued voice-swap follow-on, transparently
+        // continue polling THAT — so the UI shows swap progress instead of
+        // jumping to "done" while the swap is still cooking.
+        if (!isSwap && s.voice_assist_jid) {
+          setStatus(`song done · starting voice swap…`, 'warn');
+          return poll(s.voice_assist_jid, { swap: true });
+        }
         setStatus(`done · ${elapsed} total`, 'ok');
         showGen(100, 'done');
         setTimeout(hideGen, 2500);
-        playSong(s); refreshRecent(); make.disabled = false; return;
+        playSong(s, { showLyrics: true }); refreshRecent(); make.disabled = false; return;
       } else if (s.status === 'error') {
         setStatus('error: ' + (s.last_error || 'unknown'), 'err');
         hideGen();
