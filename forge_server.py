@@ -520,6 +520,24 @@ VPS_SITE_URL = "https://nicedreamzwholesale.com/songs"
 VPS_SSH_HOST = "ineedhemp"
 VPS_ADMIN_TOKEN_PATH = "/home/u701983700/domains/nicedreamzwholesale.com/public_html/songs/.admin_token"
 
+# --- Library gate: keep the published songs page "sacred" -------------------
+# Only real songs (>= 2 min) auto-publish to nicedreamzwholesale.com/songs and
+# count as library tracks. Anything shorter is video/jingle music — it still
+# generates and is usable for clips, but it never reaches the public songs page
+# or the real library. Set a job's "video_only": True to force-exclude a long
+# track too; set "is_song": True to force-keep a short one you really want up.
+LIBRARY_MIN_DURATION = 120  # seconds (2:00)
+
+
+def _is_library_song(j: dict) -> bool:
+    """True only for real songs that belong on the public songs page / library."""
+    if j.get("video_only"):
+        return False
+    if j.get("is_song"):
+        return True
+    return float(j.get("duration") or 0) >= LIBRARY_MIN_DURATION
+
+
 _vps_token_cache: dict = {"value": None, "ts": 0.0}
 
 
@@ -599,6 +617,7 @@ def _auto_push_loop() -> None:
                     if j.get("status") == "done"
                     and not j.get("published")
                     and (OUT / f"{jid}.json").is_file()  # sidecar still on disk
+                    and _is_library_song(j)  # gate: real songs only, no video jingles
                 ]
             if unpublished:
                 print(f"[push] auto-publishing {len(unpublished)} song(s) to VPS",
@@ -959,9 +978,11 @@ def _remove_from_music_library(safe_title: str) -> None:
 
 
 def _drop_into_music_auto_add(job: Dict[str, Any]) -> None:
-    """Copy this job's tagged 320k mp3 from exports/ into Music.app's
-    'Automatically Add' folder so it gets ingested into the library on the
-    next sweep. Idempotent — skips if a same-name drop is already pending."""
+    """DISABLED 2026-06-19 (Matt's request): the Song Forge library is now the
+    single source of truth. Copying every song into Apple Music created a second,
+    drifting pile of duplicates outside the dashboard's control. New songs no
+    longer duplicate into Apple Music — they live only in the Song Forge library."""
+    return
     try:
         title = _safe_filename(job.get("title") or job.get("idea") or job.get("id") or "untitled")
         src = EXPORTS / f"{title}.mp3"

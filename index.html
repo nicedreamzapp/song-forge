@@ -719,6 +719,10 @@
     padding-bottom: 110px; /* leaves room for the dock */
   }
   .hero-cta.hide { opacity: 0; transform: scale(.96); transition: opacity .35s ease, transform .35s ease; pointer-events: none !important; }
+  /* Removed 2026-06-19: redundant with the dock's MAKE button and the header
+     title — and it covered the visualizer. Kept in the DOM so existing JS refs
+     don't break; just never shown. */
+  #heroCTA { display: none !important; }
   .hero-btn {
     pointer-events: auto;
     position: relative; overflow: hidden;
@@ -1187,7 +1191,7 @@
   /* Compact by default — a corner panel so the visualizer stays in view.
      Add .full (⤢ button) for the fullscreen karaoke-game mode. */
   .karaoke {
-    position: fixed; top: 64px; right: 16px; z-index: 50;
+    position: fixed; top: 64px; left: 16px; z-index: 50;
     width: min(34vw, 480px); min-width: 300px; height: 34vh;
     background: radial-gradient(ellipse at top, rgba(60,40,110,.35) 0%, rgba(8,6,16,.72) 70%);
     backdrop-filter: blur(8px) saturate(120%);
@@ -1198,6 +1202,16 @@
     display: none;
     overflow: hidden;
     pointer-events: none;
+  }
+  /* Library shares the screen with the lyrics panel instead of being covered:
+     lyrics sit on the left, the library is pinned to the right. When a song is
+     playing (body.has-player → lyrics visible), the library's left edge clears
+     the lyrics panel so the song-row buttons are never blocked. */
+  #librarySheet { left: auto; right: 16px; transform: translate(0, 110vh); }
+  #librarySheet.show { transform: translate(0, 0); }
+  body.has-player #librarySheet {
+    left: calc(min(34vw, 480px) + 28px);
+    right: 16px; width: auto; max-width: none;
   }
   .karaoke.full {
     inset: 0; width: auto; min-width: 0; height: auto;
@@ -1573,6 +1587,12 @@
             <button id="clearAllBtn" class="del-all" title="Delete every song in the library">Clear all</button>
           </div>
         </div>
+        <div style="position:relative;margin:2px 0 12px;">
+          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.45;pointer-events:none;font-size:13px;">🔍</span>
+          <input id="librarySearch" type="search" placeholder="Search your songs…" autocomplete="off" spellcheck="false"
+            style="width:100%;box-sizing:border-box;padding:11px 96px 11px 38px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);color:#e9e9f0;font-size:14px;outline:none;" />
+          <span id="librarySearchCount" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--dim);pointer-events:none;"></span>
+        </div>
         <div id="recentList"></div>
       </div>
     </div>
@@ -1856,6 +1876,24 @@
     return base + '.wav';
   }
 
+  function applyLibraryFilter(){
+    const box = document.getElementById('librarySearch');
+    const q = (box ? box.value : '').trim().toLowerCase();
+    let shown = 0, total = 0;
+    recent.querySelectorAll('.song').forEach(row => {
+      total++;
+      const hit = !q || (row.dataset.search || '').includes(q);
+      row.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    const c = document.getElementById('librarySearchCount');
+    if (c) c.textContent = q ? (shown + ' of ' + total) : (total + ' songs');
+  }
+  (function(){
+    const box = document.getElementById('librarySearch');
+    if (box) box.addEventListener('input', applyLibraryFilter);
+  })();
+
   async function refreshRecent(){
     try {
       const r = await fetch('/api/songs'); const j = await r.json();
@@ -1896,8 +1934,10 @@
           </div>
           <div class="song-lyrics" id="lyr-${s.id}">${escapeHtml(s.lyrics || '(no lyrics stored)')}</div>
         `;
+        div.dataset.search = (displayName + ' ' + (s.lyrics||'') + ' ' + (s.style||'') + ' ' + (s.idea||'')).toLowerCase();
         recent.appendChild(div);
       });
+      applyLibraryFilter();
       // Re-render wipes the row classes — restore the playing highlight.
       applyPlayingHighlight();
       // Stars: click sets rating; click same star to clear.

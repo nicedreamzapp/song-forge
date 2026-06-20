@@ -28,3 +28,7 @@ voice_swap_test/
 
 # personal scratch
 lyrics_for_*.txt
+voice_refs/
+piper_voices/
+radio/
+*.bak-*
