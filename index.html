@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>🎙 Song Forge</title>
+<!-- PWA / iPhone home-screen app -->
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Song Forge" />
+<meta name="theme-color" content="#08060a" />
 <style>
   :root { color-scheme: dark;
     --gold:#ffb267;       /* ember-warm highlight (was gold) */
@@ -285,16 +293,31 @@
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
   .song .name { flex:1; font-size: 12px; color:#c9c9d2; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Compact icon-only action buttons — square, no text label (label shows on hover) */
   .song button, .song a.btn {
     background:#1c1c22; color:#ddd; border:1px solid var(--line);
-    padding:3px 7px; border-radius:5px; cursor:pointer; font-size:10px;
-    text-decoration:none; display:inline-flex; align-items:center; gap:3px;
-    letter-spacing:.03em;
+    padding:0; border-radius:6px; cursor:pointer; font-size:10px;
+    text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; flex-shrink:0; position:relative;
   }
-  .song button:hover, .song a.btn:hover { background:#25252e; border-color:var(--gold2); color:#fff; }
+  .song button:hover, .song a.btn:hover { background:#25252e; border-color:var(--gold2); color:#fff; z-index:30; }
   .song button.del, .song a.btn.del { color:#a08080; }
   .song button.del:hover { background:#3a1818; color:#f0c0c0; border-color:#5a2222; }
-  .song .ico { font-size:13px; line-height:1; }
+  .song .ico { font-size:14px; line-height:1; }
+  /* Hover tooltip that pops up above the icon button telling what it does */
+  .song button[data-tip]:hover::after, .song a.btn[data-tip]:hover::after {
+    content: attr(data-tip);
+    position:absolute; bottom:calc(100% + 7px); left:50%; transform:translateX(-50%);
+    background:#08080b; color:#f0d96b; border:1px solid var(--gold2);
+    padding:3px 8px; border-radius:6px; font-size:10px; line-height:1.2;
+    white-space:nowrap; letter-spacing:.04em; z-index:60; pointer-events:none;
+    box-shadow:0 4px 16px rgba(0,0,0,.55);
+  }
+  .song button[data-tip]:hover::before, .song a.btn[data-tip]:hover::before {
+    content:''; position:absolute; bottom:calc(100% + 2px); left:50%;
+    transform:translateX(-50%); border:5px solid transparent;
+    border-top-color:var(--gold2); z-index:60; pointer-events:none;
+  }
   .song.playing {
     border-color: var(--gold);
     background: linear-gradient(180deg, #1a160a 0%, #0d0b07 100%);
@@ -308,10 +331,10 @@
   }
   .play-indicator { display:none; align-items:center; gap:3px; margin-right:6px; color:var(--gold); font-size:11px; }
   /* Forge library 5-star widget — clicks PATCH /api/song/{id} {rating:N} */
-  .forge-stars { display: inline-flex; gap: 1px; flex-shrink: 0; margin: 0 4px; }
+  .forge-stars { display: inline-flex; gap: 0; flex-shrink: 0; margin: 0 4px; }
   .forge-stars .fst {
-    background: none; border: none; padding: 0 1px; cursor: pointer;
-    color: rgba(255,255,255,.18); font-size: 14px; line-height: 1;
+    background: none; border: none; padding: 0; cursor: pointer;
+    width: 12px; color: rgba(255,255,255,.18); font-size: 10px; line-height: 1;
     font-family: inherit;
     transition: color .12s ease, text-shadow .12s ease, transform .08s ease;
   }
@@ -1915,22 +1938,22 @@
         starsHtml += '</span>';
         const pubBadge = s.published ? '<span class="pub-pill" title="Published on nicedreamzwholesale.com/songs">LIVE</span>' : '';
         div.innerHTML = `
-          <div style="display:flex;gap:10px;align-items:center;width:100%;">
+          <div style="display:flex;gap:6px;align-items:center;width:100%;">
             <span class="play-indicator" aria-hidden="true">
               <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
             </span>
-            <div class="name" data-id="${s.id}" title="Click to expand lyrics" style="flex:1;font-size:12px;color:#c9c9d2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            <div class="name" data-id="${s.id}" title="Click to expand lyrics" style="flex:0 1 auto;min-width:0;font-size:12px;color:#c9c9d2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
               <strong style="color:#e9d28b;">${escapeHtml(displayName).slice(0,90)}</strong>
               ${pubBadge}
-              <span style="color:var(--dim);">· ${t}${dur}${bpm}</span>
+              <span style="color:var(--dim);">${dur}${bpm}</span>
             </div>
             ${starsHtml}
-            <button class="play"   data-id="${s.id}"><span class="ico">▶</span> Play</button>
-            <a      class="btn dl" href="/audio/${s.id}.wav" download="${escapeHtml(songFilename(s))}"><span class="ico">⬇</span> Save</a>
-            <button class="swap"   data-id="${s.id}"><span class="ico">🎤</span> Voice</button>
-            <button class="reveal" data-id="${s.id}"><span class="ico">↗</span> Show</button>
-            <button class="rename" data-id="${s.id}"><span class="ico">✎</span> Rename</button>
-            <button class="del"    data-id="${s.id}"><span class="ico">✕</span> Delete</button>
+            <button class="play"   data-id="${s.id}" data-tip="Play"          aria-label="Play"><span class="ico">▶</span></button>
+            <a      class="btn dl" href="/audio/${s.id}.wav" download="${escapeHtml(songFilename(s))}" data-tip="Save audio" aria-label="Save audio"><span class="ico">⬇</span></a>
+            <button class="swap"   data-id="${s.id}" data-tip="Swap voice"    aria-label="Swap voice"><span class="ico">🎤</span></button>
+            <button class="reveal" data-id="${s.id}" data-tip="Show in Finder" aria-label="Show in Finder"><span class="ico">↗</span></button>
+            <button class="rename" data-id="${s.id}" data-tip="Rename"        aria-label="Rename"><span class="ico">✎</span></button>
+            <button class="del"    data-id="${s.id}" data-tip="Delete"        aria-label="Delete"><span class="ico">✕</span></button>
           </div>
           <div class="song-lyrics" id="lyr-${s.id}">${escapeHtml(s.lyrics || '(no lyrics stored)')}</div>
         `;
@@ -2591,10 +2614,15 @@
           lyrics: $('lyrics').value,
           duration: parseFloat($('duration').value) || 120,
           bpm: parseFloat($('bpm').value) || null,
+          // Phones get a "song's done" text — the render outlives the visit.
+          notify: /iPhone|iPad|Android/i.test(navigator.userAgent),
         }),
       });
       const j = await r.json();
       if (j.error){ setStatus(j.error, 'err'); make.disabled = false; return; }
+      // The forge queues server-side now — free the button immediately so
+      // more songs can be stacked while this one renders.
+      make.disabled = false;
       poll(j.id);
     } catch (e) {
       setStatus('failed to submit: ' + e, 'err'); make.disabled = false;

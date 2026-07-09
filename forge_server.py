@@ -43,6 +43,15 @@ FFMPEG = next(
     "ffmpeg",
 )
 
+# This server is launched by nohup with a bare PATH (/usr/bin:/bin:/usr/sbin:
+# /sbin) — no /opt/homebrew/bin. Any subprocess that calls a bare "ffmpeg"
+# (songs_sync auto-push, mlx_whisper lyric-sync, demucs) then dies with
+# FileNotFoundError, silently. Prepend the Homebrew/MacPorts bins so every
+# child process we spawn can find ffmpeg & friends regardless of PATH.
+for _bin in ("/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"):
+    if os.path.isdir(_bin) and _bin not in os.environ.get("PATH", "").split(":"):
+        os.environ["PATH"] = _bin + ":" + os.environ.get("PATH", "")
+
 # Where ACE-Step writes every generated wav before forge copies it to outputs/.
 ACE_CACHE = ROOT / "engines" / "ACE-Step-1.5" / ".cache" / "acestep" / "tmp" / "api_audio"
 
@@ -315,9 +324,24 @@ LYRIC_VERBS = [
 ]
 
 
-LM_URL    = "http://127.0.0.1:1234/v1/chat/completions"
-LM_MODEL  = "gemma-4-31b-it-abliterated"
-LM_TIMEOUT = 90  # Gemma 4 31B ~5–20s for ~400 tokens on M5 Max
+LM_URL    = "http://127.0.0.1:9420/v1/chat/completions"
+LM_MODEL  = "divinetribe/gemma-4-31b-it-abliterated-4bit-mlx"  # M5-local mlx_lm.server (~29s/song incl. reasoning)
+LM_MODELS_URL = "http://127.0.0.1:9420/v1/models"
+
+
+def _lm_first_available() -> Optional[str]:
+    """First non-embedding model id LM Studio reports — lets lyrics survive
+    model swaps without editing LM_MODEL by hand."""
+    try:
+        with urlopen(LM_MODELS_URL, timeout=5) as r:
+            data = json.loads(r.read().decode())
+        for m in data.get("data", []):
+            if "embed" not in m.get("id", ""):
+                return m["id"]
+    except Exception:
+        pass
+    return None
+LM_TIMEOUT = 600  # mini Gemma thinks 1-5 min; abandoning early creates ghost-queue pileup in mlx_lm.server  # Gemma 4 31B ~5–20s for ~400 tokens on M5 Max
 
 
 # Persistent ban list — lives next to outputs/ so it survives restarts.
@@ -357,7 +381,30 @@ SYSTEM_PROMPT = (
 )
 
 
-def _llm_lyrics(style: str = "", theme: str = "", banned: Optional[list] = None) -> Optional[str]:
+def _llm_lyrics(style: str = "", theme: str = "", banned: Optional[list] = None,
+                duration: float = 0.0) -> Optional[str]:
+    """LM lyrics with patience. The LM server restarts itself under memory
+    pressure (17GB model + ACE renders share RAM) — a cold reload takes
+    30-90s. Template lyrics poison the whole vocal delivery, so WAIT for the
+    LM to come back rather than settling: up to 3 attempts, pausing for the
+    server between them. Returns None only after honest effort."""
+    for attempt in range(3):
+        out = _llm_lyrics_once(style=style, theme=theme, banned=banned, duration=duration)
+        if out:
+            return out
+        # Down or cold-loading? Poll /v1/models up to ~100s before retrying.
+        for _ in range(10):
+            try:
+                with urlopen(LM_MODELS_URL, timeout=5):
+                    break
+            except Exception:
+                time.sleep(10)
+        print(f"[llm_lyrics] retry {attempt + 2}/3", flush=True)
+    return None
+
+
+def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = None,
+                     duration: float = 0.0) -> Optional[str]:
     """Ask LM Studio (Gemma) for genre-appropriate lyrics. Returns None on any
     failure — caller falls back to _seed_lyrics()."""
     try:
@@ -372,34 +419,107 @@ def _llm_lyrics(style: str = "", theme: str = "", banned: Optional[list] = None)
 
         style_part = (style or "pop song").strip()
         theme_part = (f"\nTHEME (anchor the lyrics in this — use concrete details from it): {theme}." if theme else "").strip()
+        # Short songs (≤90s) open COLD on the chorus hook — starting the sheet
+        # with [chorus] pulls ACE's vocal entry way forward (a [verse]-first
+        # sheet invited 20-30s instrumental intros on 60s songs, Matt
+        # 2026-07-08). Long songs keep the classic verse-first shape.
+        if duration and duration <= 15:
+            structure = (
+                "Structure:\n"
+                "[chorus] 2 punchy lines only — a jingle hook, nothing else\n"
+            )
+            length_line = "Write a 10-second JINGLE — one irresistible hook, sung from the first beat.\n"
+        elif duration and duration <= 45:
+            structure = (
+                "Structure:\n"
+                "[chorus] 4 short lines — the hook; the song OPENS on this\n"
+                "[verse]  4 short lines\n"
+            )
+            length_line = "Write a 30-second song that starts singing immediately.\n"
+        elif duration and duration <= 90:
+            structure = (
+                "Structure:\n"
+                "[chorus] 4 short lines — the hook; the song OPENS on this\n"
+                "[verse]  4 short lines\n"
+                "[chorus] same chorus repeated\n"
+            )
+            length_line = "Write a 1-minute song that starts singing right away.\n"
+        else:
+            structure = (
+                "Structure:\n"
+                "[verse]  4 short lines\n"
+                "[chorus] 4 short lines\n"
+                "[verse]  4 short lines (DIFFERENT imagery from verse 1)\n"
+                "[chorus] same chorus repeated\n"
+            )
+            length_line = "Write a 2-minute song.\n"
         user_prompt = (
-            f"Write a 2-minute song.\n"
-            f"STYLE: {style_part}.{theme_part}\n\n"
-            "Structure:\n"
-            "[verse]  4 short lines\n"
-            "[chorus] 4 short lines\n"
-            "[verse]  4 short lines (DIFFERENT imagery from verse 1)\n"
-            "[chorus] same chorus repeated\n"
-            f"{ban_block}\n\n"
+            length_line
+            + f"STYLE: {style_part}.{theme_part}\n\n"
+            + structure
+            + f"{ban_block}\n\n"
             "Output the lyrics now."
         )
-        body = json.dumps({
+        payload = {
             "model": LM_MODEL,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                # Brief-reasoning nudge: at temperature 0.95 Gemma's thinking
+                # channel can ramble past the whole token budget and the lyric
+                # sheet never gets emitted as content (bit us 2026-07-08).
+                {"role": "system", "content": SYSTEM_PROMPT +
+                 "\n7. Keep any private reasoning brief — under 150 words — then output the lyrics."},
                 {"role": "user",   "content": user_prompt},
             ],
             "temperature": 0.95,
             "top_p": 0.92,
             "frequency_penalty": 0.6,  # discourage repeating its own clichés
             "presence_penalty":  0.4,
-            "max_tokens": 600,
-        }).encode("utf-8")
-        req = UrlRequest(LM_URL, data=body, headers={"Content-Type": "application/json"})
-        with urlopen(req, timeout=LM_TIMEOUT) as r:
-            data = json.loads(r.read().decode("utf-8"))
+            "max_tokens": 1400,
+            # 2026-07-08: THE speed fix. With thinking on, Gemma reasons for
+            # 1-6 min per attempt (often blowing the whole token budget →
+            # empty content → retries → customer stares at a frozen screen).
+            # enable_thinking=false: same model, same lyric quality, ~12s.
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        try:
+            req = UrlRequest(LM_URL, data=json.dumps(payload).encode("utf-8"),
+                             headers={"Content-Type": "application/json"})
+            with urlopen(req, timeout=LM_TIMEOUT) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except Exception:
+            # Model name gone stale (LM Studio model swapped)? Ask what's
+            # actually loaded and retry once with that.
+            fallback = _lm_first_available()
+            if not fallback or fallback == payload["model"]:
+                raise
+            payload["model"] = fallback
+            req = UrlRequest(LM_URL, data=json.dumps(payload).encode("utf-8"),
+                             headers={"Content-Type": "application/json"})
+            with urlopen(req, timeout=LM_TIMEOUT) as r:
+                data = json.loads(r.read().decode("utf-8"))
         msg = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
-        if not msg or "[verse]" not in msg.lower():
+        if not msg or ("[verse]" not in msg.lower() and "[chorus]" not in msg.lower()):  # jingles are [chorus]-only
+            # Thinking models sometimes draft the whole sheet inside the
+            # reasoning channel and hit the token cap before re-emitting it as
+            # content. Salvage the draft: from the first [verse] tag keep
+            # tag/short-lyric lines, stop at the first long prose line.
+            think = (data.get("choices", [{}])[0].get("message", {}).get("reasoning") or "")
+            i = think.lower().find("[verse]")
+            if i >= 0:
+                keep = []
+                for ln in think[i:].splitlines():
+                    s = ln.strip()
+                    if not s:
+                        keep.append("")
+                        continue
+                    if len(s) > 80:          # prose commentary — sheet ended
+                        break
+                    keep.append(s)
+                cand = "\n".join(keep).strip()
+                if "[chorus]" in cand.lower() and cand.count("\n") >= 8:
+                    msg = cand
+                    print("[llm_lyrics] salvaged sheet from reasoning channel", flush=True)
+        if not msg or ("[verse]" not in msg.lower() and "[chorus]" not in msg.lower()):  # jingles are [chorus]-only
             return None
         # Belt-and-braces: if the model still slipped a banned phrase in,
         # null out so the caller can retry or fall back. (Case-insensitive.)
@@ -468,6 +588,13 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
         parts.append("clean mix")
     if not has_vocal_hint:
         parts.append("expressive male vocal")
+    # Matt 2026-07-08: customers read a long instrumental intro as "half my
+    # song is empty" — cue ACE to bring the singing in promptly. "first ten
+    # seconds" still gave ~20s intros; be blunt. Skip for explicitly
+    # instrumental requests.
+    if "instrumental" not in style_l and "no vocal" not in style_l:
+        parts.insert(1, "vocals start immediately")
+        parts.append("no instrumental intro, singing from the very first bar")
 
     # ACE-Step's vocal default skews toward white pop. For Black-rooted
     # genres, append explicit timbre + lineage cues UNLESS the user already
@@ -507,6 +634,7 @@ SIDECAR_FIELDS = (
     "rating",                # 0–5; mirrored to/from VPS manifest
     "published", "published_at", "published_url",  # tracks VPS state
     "kind", "auto_assist", "src_jid", "voice_name", "voice_path",  # swap-job
+    "private",  # customer-app job: never in Matt's library/Music.app/VPS page
 )
 
 
@@ -531,7 +659,7 @@ LIBRARY_MIN_DURATION = 120  # seconds (2:00)
 
 def _is_library_song(j: dict) -> bool:
     """True only for real songs that belong on the public songs page / library."""
-    if j.get("video_only"):
+    if j.get("video_only") or j.get("private"):
         return False
     if j.get("is_song"):
         return True
@@ -765,6 +893,93 @@ def _fuzzy_score(a: str, b: str) -> float:
         return 0.0
     hits = sum(1 for t in A if t in B)
     return hits / len(A)
+
+
+def _trim_long_intro(wav: Path) -> Optional[float]:
+    """Guarantee vocals land early (Matt 2026-07-08). ACE ignores 'no intro'
+    prompt cues often enough that 60s songs shipped with 20-30s instrumental
+    openings. Deterministic fix: whisper the first 45s, find the first segment
+    with real words; if the vocal enters later than 12s, cut the head so it
+    enters ~6s (0.6s fade-in). Returns seconds trimmed, or None if untouched.
+    Instrumentals are inherently safe — no words means no onset, no trim."""
+    try:
+        if not (WHISPER_BIN.exists() and WHISPER_MODEL.exists()):
+            return None
+        import tempfile
+        import re as _re
+        with tempfile.TemporaryDirectory() as td:
+            probe = Path(td) / "probe.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-t", "45",
+                            "-i", str(wav), "-ar", "16000", "-ac", "1", str(probe)],
+                           capture_output=True, timeout=60)
+            # Whisper on the full file merges intro+first line into one
+            # segment stamped from 0:00, hiding a 25s intro. Probe 6s slices
+            # instead: the first slice that transcribes to real words is where
+            # the vocal actually lives.
+            onset = None
+            for win in range(0, 40, 4):
+                sl = Path(td) / f"sl{win}.wav"
+                subprocess.run([FFMPEG, "-y", "-loglevel", "error",
+                                "-ss", str(win), "-t", "5", "-i", str(probe),
+                                str(sl)], capture_output=True, timeout=30)
+                r = subprocess.run([str(WHISPER_BIN), "-m", str(WHISPER_MODEL),
+                                    "-f", str(sl), "-np"],
+                                   capture_output=True, text=True, timeout=60)
+                txt = " ".join(r.stdout.splitlines())
+                # strip [music], (soft guitar), ♪, timestamps, whitespace
+                bare = _re.sub(r"\[.*?\]|\(.*?\)|♪|-->|[\d:.\s]", "", txt)
+                if len(bare) >= 10:  # real words, not "Mm"/"Ooh"/fillers
+                    onset = float(win)
+                    break
+            # window start under-reports the true onset by up to 5s, so a
+            # detected onset of 10 means words at 10-15s — worth trimming.
+            if onset is None or onset < 10.0 or onset > 40.0:
+                return None
+            cut = max(0.0, onset - 3.0)
+            trimmed = Path(td) / "trimmed.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-ss", f"{cut:.2f}",
+                            "-i", str(wav), "-af", "afade=t=in:st=0:d=0.6",
+                            "-ar", "48000", "-ac", "2", "-sample_fmt", "s16",
+                            str(trimmed)],
+                           capture_output=True, timeout=120)
+            if trimmed.is_file() and trimmed.stat().st_size > 100_000:
+                shutil.copyfile(trimmed, wav)
+                return cut
+    except Exception as e:
+        print(f"[introtrim] {e}", flush=True)
+    return None
+
+
+def _fit_to_duration(wav: Path, target: float) -> Optional[float]:
+    """Deliver EXACTLY the length the customer bought (Matt 2026-07-08: 'I
+    want it to be exact if we can'). Renders run +20s headroom so the
+    intro-trim has material to cut; whatever is left over comes off the TAIL
+    here with a 1.5s fade-out. Returns the final length if trimmed."""
+    try:
+        if not target or target < 8:  # 8s floor covers 10s jingles
+            return None
+        ffprobe = FFMPEG.replace("ffmpeg", "ffprobe")
+        r = subprocess.run([ffprobe, "-v", "error", "-show_entries",
+                            "format=duration", "-of", "csv=p=0", str(wav)],
+                           capture_output=True, text=True, timeout=30)
+        actual = float((r.stdout or "0").strip() or 0)
+        if actual <= target + 1.5:
+            return None  # already at/under the asked length — leave it
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            fitted = Path(td) / "fitted.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", str(wav),
+                            "-t", f"{target:.2f}",
+                            "-af", f"afade=t=out:st={max(0.0, target - 1.5):.2f}:d=1.5",
+                            "-ar", "48000", "-ac", "2", "-sample_fmt", "s16",
+                            str(fitted)],
+                           capture_output=True, timeout=120)
+            if fitted.is_file() and fitted.stat().st_size > 100_000:
+                shutil.copyfile(fitted, wav)
+                return target
+    except Exception as e:
+        print(f"[fitdur] {e}", flush=True)
+    return None
 
 
 def _align_lyrics(jid: str, audio_path: Path, lyrics_text: str, duration: float) -> Dict[str, Any]:
@@ -1257,6 +1472,7 @@ def _run_swap_impl(jid: str, job: Dict[str, Any]) -> None:
             _drop_into_music_auto_add(job)
         except Exception as e:
             print(f"[swap] export/auto-add failed for {jid[:8]}: {e}", flush=True)
+        _notify_done(job)
 
         # Tidy up the working directory now we have the final wav.
         try:
@@ -1459,12 +1675,27 @@ def _worker():
                                 req = UrlRequest(url, headers={"Accept": "audio/wav"})
                                 with urlopen(req, timeout=120) as r, open(local, "wb") as f:
                                     shutil.copyfileobj(r, f)
+                            job["stage"] = "tightening the intro…"
+                            target = float(job.get("duration") or 0)  # what the customer bought
+                            cut = _trim_long_intro(local)
+                            if cut:
+                                print(f"[introtrim] {job['id'][:8]} cut {cut:.1f}s of instrumental intro", flush=True)
+                            fitted = _fit_to_duration(local, target)
+                            if fitted:
+                                print(f"[fitdur] {job['id'][:8]} tail-trimmed to exactly {fitted:.0f}s", flush=True)
+                            # bookkeeping: store what actually ships
+                            if cut and not fitted and target:
+                                job["duration"] = max(15.0, target + 20.0 - cut) if target <= 220 else max(15.0, target - cut)
                             job["status"] = "done"
                             job["audio"] = f"/audio/{local.name}"
                             job["finished_at"] = time.time()
                             _save_sidecar(job)
-                            _export_tagged_mp3(job)
-                            _drop_into_music_auto_add(job)
+                            if not job.get("private"):
+                                # Customer-app songs stay out of Matt's
+                                # exports/ and Music.app entirely.
+                                _export_tagged_mp3(job)
+                                _drop_into_music_auto_add(job)
+                            _notify_done(job)
                             # Auto voice-swap to a Black vocalist if the style
                             # matched the registry. Fires once per source job.
                             va = job.get("voice_assist")
@@ -1482,6 +1713,179 @@ def _worker():
         except Exception as e:
             print("[worker]", e, flush=True)
         time.sleep(2)
+
+
+# ----- queue dispatcher + zombie reaper ---------------------------------------
+# ACE-Step can only be trusted with ONE task at a time (two concurrent tasks
+# wedge it into 502s). POST /api/song therefore only parks jobs in JOBS; this
+# loop feeds ACE the oldest waiting job whenever nothing is in flight, and
+# reaps any dispatched job that has sat in queued/running past REAP_SECONDS
+# (the VAE-decode hang mode is "stuck forever", so a generous flat timeout is
+# safe — normal renders finish in single-digit minutes).
+REAP_SECONDS = 30 * 60
+DISPATCH_MAX_ATTEMPTS = 3
+
+
+def _dispatch_loop():
+    while True:
+        try:
+            now = time.time()
+            with JOBS_LOCK:
+                inflight = [j for j in JOBS.values()
+                            if j.get("ace_task_id")
+                            and j.get("status") in ("queued", "running")]
+                # Reap zombies first — a reaped job frees the ACE slot.
+                for j in inflight:
+                    started = j.get("dispatched_at") or j.get("created_at") or now
+                    if now - started > REAP_SECONDS:
+                        j["status"] = "error"
+                        j["last_error"] = (
+                            f"auto-reaped: no result after {int((now - started) / 60)} min "
+                            "(ACE likely wedged; queue released)"
+                        )
+                        print(f"[reaper] reaped {j['id'][:8]} ({j.get('title') or 'untitled'})", flush=True)
+                inflight = [j for j in inflight if j.get("status") in ("queued", "running")]
+                nxt = None
+                if not inflight:
+                    waiting = [j for j in JOBS.values()
+                               if j.get("status") == "queued"
+                               and not j.get("ace_task_id")
+                               and j.get("ace_payload")
+                               and j.get("kind") != "swap"]
+                    if waiting:
+                        nxt = min(waiting, key=lambda j: j.get("created_at", 0))
+
+            if nxt is not None and _ace_alive():
+                try:
+                    if nxt.get("needs_lyrics"):
+                        # Write lyrics here in the background, not in the POST
+                        # handler — clients get their job id instantly.
+                        lyr = ""
+                        for _ in range(3):
+                            lyr = _llm_lyrics(style=nxt.get("style", ""),
+                                              theme=nxt.get("title") or nxt.get("idea") or "",
+                                              duration=float(nxt.get("duration") or 0)) or ""
+                            if lyr:
+                                break
+                        if not lyr:
+                            _theme = (nxt.get("title") or nxt.get("idea") or "").strip()
+                            if _theme:
+                                # Themed paid request but the lyric LLM never
+                                # answered (even after retries). Do NOT ship
+                                # generic _seed_lyrics() filler and bill for it —
+                                # fail the job so app.py's auto-refund (status ==
+                                # "error") kicks in and the customer can retry.
+                                with JOBS_LOCK:
+                                    if nxt["id"] in JOBS:
+                                        nxt["status"] = "error"
+                                        nxt["needs_lyrics"] = False
+                                        nxt["stage"] = "lyric engine unavailable"
+                                        nxt["last_error"] = ("Lyric engine was warming up — you "
+                                                             "were not charged. Please try again in a minute.")
+                                print("[lyrics] %s themed request but LLM down — failing for auto-refund" % nxt["id"][:8], flush=True)
+                                time.sleep(2)
+                                continue
+                            lyr = _seed_lyrics()
+                        with JOBS_LOCK:
+                            nxt["lyrics"] = lyr
+                            nxt["ace_payload"]["lyrics"] = lyr
+                            nxt["needs_lyrics"] = False
+                            nxt["stage"] = "lyrics done — sending to ACE"
+                    resp = _ace_post("/release_task", nxt["ace_payload"], timeout=15)
+                    ace_tid = (resp.get("data") or {}).get("task_id")
+                    if not ace_tid:
+                        raise RuntimeError(f"no task_id from ACE: {resp}")
+                    with JOBS_LOCK:
+                        # Job may have been DELETEd while we talked to ACE.
+                        if nxt["id"] in JOBS:
+                            nxt["ace_task_id"] = ace_tid
+                            nxt["dispatched_at"] = time.time()
+                            nxt["stage"] = "sent to ACE"
+                    print(f"[dispatch] {nxt['id'][:8]} → ACE {ace_tid[:8] if isinstance(ace_tid, str) else ace_tid}", flush=True)
+                except Exception as e:
+                    with JOBS_LOCK:
+                        nxt["dispatch_attempts"] = nxt.get("dispatch_attempts", 0) + 1
+                        nxt["stage"] = f"ACE submit failed ({nxt['dispatch_attempts']}x), retrying"
+                        if nxt["dispatch_attempts"] >= DISPATCH_MAX_ATTEMPTS:
+                            nxt["status"] = "error"
+                            nxt["last_error"] = f"ACE submit failed {DISPATCH_MAX_ATTEMPTS}x: {e}"
+                    print(f"[dispatch] {nxt['id'][:8]} submit failed: {e}", flush=True)
+        except Exception as e:
+            print("[dispatch]", e, flush=True)
+        time.sleep(2)
+
+
+# ----- "song's done" text to Matt's phone -------------------------------------
+IMSG_SEND = Path.home() / ".claude" / "imessage-send.sh"
+
+
+def _lan_url() -> str:
+    """Best-guess URL for reaching this forge from another device on the LAN."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return f"http://{ip}:{PORT}"
+    except Exception:
+        return f"http://localhost:{PORT}"
+
+
+def _notify_done(job: Dict[str, Any]) -> None:
+    """iMessage Matt that his song finished. Fires only for jobs submitted
+    with notify:true (the UI sets that automatically on phones) and only
+    inside the 9am–9pm quiet-hours window."""
+    if not job.get("notify") or job.get("notified"):
+        return
+    hour = time.localtime().tm_hour
+    if not (9 <= hour < 21):
+        return
+    if not IMSG_SEND.is_file():
+        return
+    job["notified"] = True
+    title = job.get("title") or job.get("idea") or "your song"
+    msg = f"🎶 \"{title}\" is done — {_lan_url()}"
+    try:
+        subprocess.Popen(["/bin/bash", str(IMSG_SEND), msg],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        print(f"[notify] {e}", flush=True)
+
+
+# ----- scratch pruner ---------------------------------------------------------
+def _prune_scratch_loop():
+    """Every 6h: drop voice_swap_work/ dirs older than 7 days (failed swaps
+    leave their demucs/seed-vc intermediates behind — ~25MB each) and ACE
+    cache wavs older than 3 days that no job references. Never touches
+    outputs/ — that's the library."""
+    while True:
+        try:
+            now = time.time()
+            for d in SWAP_WORK.iterdir():
+                try:
+                    if d.is_dir() and now - d.stat().st_mtime > 7 * 86400:
+                        shutil.rmtree(d)
+                        print(f"[prune] swap scratch {d.name}", flush=True)
+                except Exception:
+                    pass
+            referenced = set()
+            with JOBS_LOCK:
+                for j in JOBS.values():
+                    for p in j.get("ace_cache_files") or []:
+                        referenced.add(Path(p).resolve())
+            if ACE_CACHE.is_dir():
+                for f in ACE_CACHE.glob("*.wav"):
+                    try:
+                        if f.resolve() in referenced:
+                            continue
+                        if now - f.stat().st_mtime > 3 * 86400:
+                            f.unlink()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print("[prune]", e, flush=True)
+        time.sleep(6 * 3600)
 
 
 # ----- HTTP handler ----------------------------------------------------------
@@ -1597,6 +2001,8 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
             return self._file(ROOT / "index.html", "text/html; charset=utf-8")
+        if u.path == "/manifest.json":
+            return self._file(ROOT / "manifest.json", "application/manifest+json")
 
         # Static JS / CSS / image assets sitting next to index.html.
         # Path is restricted to plain filenames in ROOT — dots allowed in the
@@ -1623,8 +2029,13 @@ class Handler(BaseHTTPRequestHandler):
                 "download": _ace_download_status(),
             })
         if u.path == "/api/songs":
+            # Matt's UI list — customer-app (private) jobs are hidden unless
+            # explicitly requested with ?all=1.
+            show_all = parse_qs(u.query).get("all", ["0"])[0] == "1"
             with JOBS_LOCK:
                 rows = sorted(JOBS.values(), key=lambda j: j.get("created_at", 0), reverse=True)
+            if not show_all:
+                rows = [j for j in rows if not j.get("private")]
             return self._json({"songs": rows})
         if u.path == "/api/voices":
             return self._json({"voices": _list_voices()})
@@ -1840,15 +2251,11 @@ class Handler(BaseHTTPRequestHandler):
             style = (body.get("style") or "").strip()
             title = (body.get("title") or "").strip()[:200]
             lyrics = (body.get("lyrics") or "").strip()
-            if not lyrics:
-                # Retry up to 3 times if Gemma slips a banned phrase past
-                # the system prompt and trips the post-filter.
-                for _ in range(3):
-                    lyrics = _llm_lyrics(style=style, theme=title or idea) or ""
-                    if lyrics:
-                        break
-                if not lyrics:
-                    lyrics = _seed_lyrics()
+            # Blank lyrics used to be written HERE, synchronously — 30-90s of
+            # Gemma inside the POST handler. Clients (and Cloudflare) time out
+            # long before that, orphaning rendered songs. Now the dispatcher
+            # writes lyrics in the background; POST returns instantly.
+            needs_lyrics = not lyrics
             try:
                 bpm_in = float(body.get("bpm")) if body.get("bpm") else None
             except Exception:
@@ -1859,46 +2266,62 @@ class Handler(BaseHTTPRequestHandler):
                 duration = float(body.get("duration") or 120.0)
             except Exception:
                 duration = 120.0
-            duration = max(15.0, min(duration, 240.0))
+            duration = max(8.0, min(duration, 240.0))  # 8s floor for 10s jingles
 
+            language = (body.get("language") or "en").strip().lower() or "en"
+            # Default guidance_scale lowered from 15.0 → 10.0 on 2026-05-13
+            # because Matt felt outputs were "too produced and white" —
+            # high guidance over-forces ACE-Step's polished modern-pop
+            # prior. Lower guidance = looser interpretation = more
+            # organic/varied vocal character. Per-request override via
+            # body["guidance_scale"] still respected.
             try:
-                language = (body.get("language") or "en").strip().lower() or "en"
-                # Default guidance_scale lowered from 15.0 → 10.0 on 2026-05-13
-                # because Matt felt outputs were "too produced and white" —
-                # high guidance over-forces ACE-Step's polished modern-pop
-                # prior. Lower guidance = looser interpretation = more
-                # organic/varied vocal character. Per-request override via
-                # body["guidance_scale"] still respected.
-                try:
-                    gscale = float(body.get("guidance_scale") or 10.0)
-                except Exception:
-                    gscale = 10.0
-                gscale = max(3.0, min(gscale, 20.0))
-                try:
-                    steps = int(body.get("inference_steps") or 27)
-                except Exception:
-                    steps = 27
-                steps = max(10, min(steps, 60))
-                resp = _ace_post(
-                    "/release_task",
-                    {
-                        "prompt": prompt,
-                        "lyrics": lyrics,
-                        "vocal_language": language,
-                        "task_type": "text2music",
-                        "inference_steps": steps,
-                        "guidance_scale": gscale,
-                        "audio_format": "wav",
-                        "audio_duration": duration,
-                    },
-                    timeout=15,
-                )
-            except Exception as e:
-                return self._json({"error": f"ACE submit failed: {e}"}, 502)
-
-            ace_tid = (resp.get("data") or {}).get("task_id")
-            if not ace_tid:
-                return self._json({"error": "no task_id from ACE", "ace_response": resp}, 502)
+                gscale = float(body.get("guidance_scale") or 10.0)
+            except Exception:
+                gscale = 10.0
+            gscale = max(3.0, min(gscale, 20.0))
+            try:
+                steps = int(body.get("inference_steps") or 27)
+            except Exception:
+                steps = 27
+            steps = max(10, min(steps, 60))
+            ace_payload = {
+                "prompt": prompt,
+                "lyrics": lyrics,
+                "vocal_language": language,
+                "task_type": "text2music",
+                "inference_steps": steps,
+                "guidance_scale": gscale,
+                "audio_format": "wav",
+                # Vocal songs render with +20s headroom: ACE loves 20-30s
+                # instrumental intros, _trim_long_intro cuts them, and without
+                # the pad a 60s purchase came back 35s (2026-07-08). Trimmed
+                # songs land near the requested length; untrimmed ones run a
+                # little long — a bonus, never a shortfall.
+                # NB: check the USER's style text, not the built prompt — the
+                # prompt always contains "no instrumental intro" for vocal
+                # songs, which made this condition always-true (2026-07-08).
+                "audio_duration": duration if "instrumental" in (style or "").lower()
+                                   else min(duration + 20.0, 240.0),
+                # Force the MLX-native VAE decode instead of the legacy
+                # PyTorch tiled decode. On unified-memory Macs the tiled
+                # path (a VRAM-saver) intermittently HANGS forever at
+                # "Decoding audio... 0.8", wedging the ACE worker and
+                # cascading 502s on every subsequent submit. We have
+                # 107GB unified RAM so tiling buys nothing. (2026-06-29)
+                "use_tiled_decode": False,
+            }
+            # Jobs are NOT sent to ACE here. ACE-Step wedges into 502s when it
+            # holds more than one task at a time, so every job waits in the
+            # forge queue and _dispatch_loop feeds ACE exactly one in-flight
+            # task. Submit as many as you like, back to back.
+            try:
+                count = int(body.get("count") or 1)
+            except Exception:
+                count = 1
+            count = max(1, min(count, 10))
+            notify = bool(body.get("notify"))
+            private = bool(body.get("private"))
 
             jid = uuid.uuid4().hex
             # Auto-Blackify: if the style hits a Black-rooted genre, queue a
@@ -1918,22 +2341,30 @@ class Handler(BaseHTTPRequestHandler):
                 }
             else:
                 voice_assist = _pick_black_voice_for_style(style)
+            ids = []
             with JOBS_LOCK:
-                JOBS[jid] = {
-                    "id": jid,
-                    "status": "queued",
-                    "ace_task_id": ace_tid,
-                    "prompt": prompt,
-                    "lyrics": lyrics,
-                    "idea": idea,
-                    "style": style,
-                    "title": title,
-                    "duration": duration,
-                    "bpm": int(bpm_in) if bpm_in else None,
-                    "created_at": time.time(),
-                    "voice_assist": voice_assist,
-                }
-            return self._json({"id": jid, "voice_assist": voice_assist})
+                for i in range(count):
+                    j = jid if i == 0 else uuid.uuid4().hex
+                    JOBS[j] = {
+                        "id": j,
+                        "status": "queued",
+                        "needs_lyrics": needs_lyrics,
+                        "stage": "writing your lyrics…" if needs_lyrics else "waiting in forge queue",
+                        "ace_payload": dict(ace_payload),
+                        "prompt": prompt,
+                        "lyrics": lyrics,
+                        "idea": idea,
+                        "style": style,
+                        "title": title if count == 1 else (f"{title} (take {i+1})" if title else title),
+                        "duration": duration,
+                        "bpm": int(bpm_in) if bpm_in else None,
+                        "created_at": time.time() + i * 0.001,  # preserve submit order
+                        "voice_assist": voice_assist,
+                        "notify": notify,
+                        "private": private,
+                    }
+                    ids.append(j)
+            return self._json({"id": jid, "ids": ids, "voice_assist": voice_assist})
 
         # Purge ACE cache files that aren't referenced by any current job.
         # This cleans up the orphaned 2nd variant ACE always renders, plus any
@@ -2062,11 +2493,15 @@ def main():
     n = _hydrate_jobs()
     print(f"[forge] hydrated {n} song(s) from outputs/", flush=True)
     threading.Thread(target=_worker, daemon=True).start()
+    threading.Thread(target=_dispatch_loop, daemon=True).start()
+    threading.Thread(target=_prune_scratch_loop, daemon=True).start()
     threading.Thread(target=_ace_heartbeat_loop, daemon=True).start()
     threading.Thread(target=_pull_vps_state_loop, daemon=True).start()
     threading.Thread(target=_auto_push_loop, daemon=True).start()
-    httpd = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"[forge] http://127.0.0.1:{PORT}/   (ACE-Step at {ACE})", flush=True)
+    # 0.0.0.0 (was 127.0.0.1) so Matt's iPhone can reach the forge over
+    # LAN/Tailscale — the PWA remote-control setup. ACE itself stays loopback.
+    httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"[forge] http://127.0.0.1:{PORT}/  +  {_lan_url()}/  (ACE-Step at {ACE})", flush=True)
     httpd.serve_forever()
 
 
