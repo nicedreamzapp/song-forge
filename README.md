@@ -8,6 +8,22 @@ Everything happens on your Mac. Nothing ever leaves it.
 
 ---
 
+## 📱 Song Forge for iPhone — coming to the App Store
+
+<img src="docs/appstore/appicon.png" width="80" align="left" alt="Song Forge app icon">
+
+There's now a **Song Forge iPhone app** (submitted to the App Store — review in progress). Same idea, zero setup: describe a song, and my Macs at home do the forging and send it back to your phone in under a minute. **10 free songs** when you install, then a small pack if you want more — no subscription, no account, no email. Songs are yours to keep; they're wiped from my machines about an hour after you download them, because your songs are none of my business.
+
+<br clear="left">
+
+| | | | |
+|---|---|---|---|
+| ![Make songs](docs/appstore/1_make_songs.png) | ![Describe it](docs/appstore/2_describe_it.png) | ![Forging](docs/appstore/3_forging.png) | ![Pricing](docs/appstore/4_pricing.png) |
+
+Pick a length from a **10-second jingle** to a full 4-minute song — you get exactly what you asked for, with the singing starting right up front.
+
+---
+
 ## 📺 Watch it in action
 
 [![Song Forge — FREE Local AI Music Generator (No Cloud)](https://img.youtube.com/vi/-o_4-Ka-H38/maxresdefault.jpg)](https://youtu.be/-o_4-Ka-H38)
