@@ -105,7 +105,9 @@ Open [http://localhost:8767](http://localhost:8767) and hit **FORGE A SONG**.
 
 ## ⚠️ Heads up
 
-This is a **personal project**. No license assigned, no support promised, no warranty. Built it for myself and put it up because someone might learn from it.
+This started as a personal project — and then it grew up. The same engine in this repo now runs a **production two-Mac render farm** behind the Song Forge iPhone app: exact-length delivery from 10-second jingles to 4-minute songs, lyrics written in ~12 seconds, automatic intro trimming so the singing starts up front, health watchdogs, and billing that refunds itself if a render ever fails. It makes real songs for real customers, every day, on hardware in my house.
+
+The repo itself is still shared in the same spirit: no license assigned, no support promised, no warranty — put up because someone might learn from it.
 
 Models are large. Setup takes a minute. But once it's running it's just… yours. Forever. Offline. No one tracking what you make. No subscription that disappears when the company pivots.
 
