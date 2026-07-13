@@ -28,3 +28,10 @@ voice_swap_test/
 
 # personal scratch
 lyrics_for_*.txt
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+**/.DS_Store

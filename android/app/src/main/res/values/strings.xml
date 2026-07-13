@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Song Forge</string>
+    <string name="purchases_coming_soon">Purchases coming soon</string>
+    <string name="downloading_song">Saving song…</string>
+</resources>

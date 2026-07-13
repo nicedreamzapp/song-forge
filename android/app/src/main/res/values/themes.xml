@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Forced dark theme to match the iOS app (preferredColorScheme(.dark)). -->
+    <style name="Theme.OwnATune" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/ink</item>
+        <item name="android:navigationBarColor">@color/ink</item>
+        <item name="android:windowBackground">@color/ink</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Launch splash: solid ink background with the forge emblem centered. -->
+    <style name="Theme.OwnATune.Splash" parent="Theme.OwnATune">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>
