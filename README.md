@@ -16,7 +16,7 @@ The Song Forge iPhone app plus the local Mac render engine (Python server + web 
 
 The Android port. Source in [`android/`](android/).
 
-**Status:** Coming soon to Google Play. The code is available now in [`android/`](android/).
+**Status:** Submitted to Google Play — review in progress (July 2026). The code is available now in [`android/`](android/).
 
 ## Links
 
