@@ -10,7 +10,9 @@ This repo holds both platforms, cleanly separated:
 
 The Song Forge iPhone app plus the local Mac render engine (Python server + web UI) that powers it — `forge_server.py`, `forge_supervisor.sh`, the web UI, and docs. Full source in [`ios/`](ios/).
 
-**Status:** App Store review in progress.
+**Status:** ✅ Live on the App Store.
+
+[![Download on the App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/id6788616929)
 
 ## 🤖 Android
 
