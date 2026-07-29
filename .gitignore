@@ -32,3 +32,4 @@ voice_refs/
 piper_voices/
 radio/
 *.bak-*
+*.bak[0-9]*

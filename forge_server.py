@@ -95,7 +95,8 @@ BLACK_VOCAL_REINFORCEMENT = (
     "Black African American male lead vocalist with deep rich gospel-rooted "
     "timbre, natural blues-tinged melisma and grain (Sonny Til, Clyde McPhatter, "
     "Sam Cooke, Otis Redding voice type), NOT a thin clear-toned white pop "
-    "tenor, soulful church-trained delivery"
+    "tenor, NOT country, NOT country-gospel, NOT Nashville twang, NOT CCM, "
+    "soulful church-trained delivery"
 )
 
 # Hip-hop / rap is rhythmic speech, not melodic singing — the gospel-singer
@@ -137,6 +138,34 @@ REGGAE_VOCAL_REINFORCEMENT = (
     "NOT light Caribbean lilt — heavy chesty Rasta authenticity"
 )
 
+# Female variants (2026-07-09): the male-only reinforcements were overriding
+# explicit female requests ("a lady singing" hip-hop came back as a man).
+# Selected by _detect_gender in _seed_prompt.
+HIPHOP_VOCAL_REINFORCEMENT_F = (
+    "Black female MC, African American woman emcee, commanding Black female rap voice, "
+    "PURE hip-hop in the Lauryn Hill / Queen Latifah / MC Lyte / Rapsody / "
+    "Missy Elliott / Bahamadia / Little Simz lineage, confident gritty Black female "
+    "rap delivery, scratched chorus samples, vinyl crackle warmth, "
+    "NO electric guitar, NO rock drums, NO nu-metal, NO rap-rock fusion, NO punk, "
+    "NOT white, NOT pop, NOT indie, NOT alt-rock, NOT rap-metal, NOT a male voice, "
+    "raw Black conscious hip-hop authenticity"
+)
+REGGAE_VOCAL_REINFORCEMENT_F = (
+    "Black Jamaican female lead vocalist with warm resonant chant-toned delivery "
+    "in the Marcia Griffiths / Judy Mowatt / Rita Marley / Sister Nancy lineage, "
+    "deep roots-reggae timbre, patois inflection, earthy organic Nyabinghi-rooted "
+    "voice, NOT gospel melisma, NOT soul curls, NOT R&B runs, "
+    "NOT a thin white pop voice, NOT pop-reggae, NOT a male voice — "
+    "heavy roots authenticity"
+)
+BLACK_VOCAL_REINFORCEMENT_F = (
+    "Black African American female lead vocalist with rich gospel-rooted timbre, "
+    "natural blues-tinged melisma and grain (Mahalia Jackson, Aretha Franklin, "
+    "Etta James voice type), NOT a thin white pop voice, NOT a male voice, "
+    "NOT country, NOT country-gospel, NOT Nashville twang, NOT CCM, "
+    "soulful church-trained delivery"
+)
+
 # Auto voice-swap registry. When a song's style matches one of these keyword
 # clusters, the worker auto-queues a seed-vc voice-swap to retimbre the lead
 # vocal onto a real Black artist's voice — because ACE-Step's default vocal
@@ -144,6 +173,26 @@ REGGAE_VOCAL_REINFORCEMENT = (
 # First matching entry wins. Drop new reference wavs in voice_refs/ and add
 # rows here.
 BLACK_VOICE_REGISTRY = [
+    # Hip-hop / rap / drill — MALE. Added 2026-07-29 after Matt listened to a
+    # drill render and said it "sounds like a white guy singing a rap song".
+    # Cause: the registry had reggae/blues/soul/gospel entries and a female
+    # rap fallback (lady_flow, gender-gate only) but NOTHING for male rap, so
+    # hip-hop got prompt reinforcement and no timbre swap — and prompt words
+    # alone do not move ACE-Step's timbre. black_thought.wav was already on
+    # both nodes, unreferenced. Listed FIRST so rap never falls through to the
+    # Sam Cooke gospel entry (its keyword list includes "soul"/"blues").
+    {
+        "gender": "male",
+        "keywords": (
+            "hip hop", "hip-hop", "hiphop", "rap", "rapper", "rapped",
+            "drill", "uk drill", "trap", "boom bap", "boom-bap",
+            "gangsta rap", "conscious rap", "mc ", "emcee",
+            "kendrick", "nas", "jay-z", "biggie", "tupac", "2pac",
+            "black thought", "the roots", "mos def", "talib kweli",
+        ),
+        "voice_name": "Black Thought",
+        "voice_path": ROOT / "voice_refs" / "black_thought.wav",
+    },
     # Roots reggae lineage — chesty Rasta chant tone. Listed first so reggae
     # styles never fall through to the gospel/soul Sam Cooke entry (whose
     # keyword list contains "blues" which used to swallow reggae prompts that
@@ -159,8 +208,11 @@ BLACK_VOICE_REGISTRY = [
             "burning spear", "bob marley", "peter tosh",
             "sizzla", "capleton", "buju banton", "jacob miller",
         ),
-        "voice_name": "Burning Spear",
-        "voice_path": ROOT / "voice_refs" / "burning_spear.wav",
+        # 2026-07-25: Matt picked Vaughn Benjamin (Midnite) as THE reggae voice
+        # after rejecting Spear/Hill/Toots — pitch center 245Hz, narrow chant
+        # band, dark. Ref cut from "Livity" isolated vocals. Spear stays on disk.
+        "voice_name": "Vaughn Benjamin",
+        "voice_path": ROOT / "voice_refs" / "vaughn_benjamin.wav",
     },
     # Delta blues lineage — RJ's sharp haunted Mississippi voice. Listed before
     # Sam Cooke so Delta/country-blues phrases beat the broader Sam Cooke entry.
@@ -186,29 +238,98 @@ BLACK_VOICE_REGISTRY = [
         "voice_name": "Sam Cooke (Soul Stirrers)",
         "voice_path": ROOT / "voice_refs" / "sam_cooke_soul_stirrers.wav",
     },
-    # Female lineage — Mahalia Jackson covers gospel/soul/R&B/blues/funk.
+    # Female soul/R&B lineage — Iman Europe (Matt 2026-07-25: "use more voices
+    # like this style"). Warm 215Hz center, wide range; ref from "Kryptonite".
+    # Listed BEFORE Mahalia so modern soul/R&B prompts land on her.
     {
         "gender": "female",
         "keywords": (
-            "gospel", "doo-wop", "doo wop", "doowop", "soul", "deep soul",
-            "neo soul", "neo-soul", "r&b", "rnb", "rhythm and blues",
-            "motown", "blues", "delta blues", "chicago blues", "jump blues",
-            "funk", "p-funk", "p funk",
+            "soul", "deep soul", "neo soul", "neo-soul", "r&b", "rnb",
+            "rhythm and blues", "motown", "funk", "p-funk", "p funk",
+        ),
+        "voice_name": "Iman Europe",
+        "voice_path": ROOT / "voice_refs" / "iman_europe.wav",
+    },
+    # Female gospel/blues lineage — Mahalia Jackson keeps the church and the
+    # old blues; everything modern moved to Iman above.
+    {
+        "gender": "female",
+        "keywords": (
+            "gospel", "doo-wop", "doo wop", "doowop",
+            "blues", "delta blues", "chicago blues", "jump blues",
         ),
         "voice_name": "Mahalia Jackson",
         "voice_path": ROOT / "voice_refs" / "mahalia_jackson.wav",
     },
 ]
-AUTO_BLACKIFY = True  # default ON — Black-rooted genres (gospel/soul/blues/funk/etc) auto-swap to the right reference voice. Override with explicit voice_path or auto_voice_assist:false per-request.
+# Genre gate map (2026-07-09): requested-genre keywords -> (CLAP label,
+# drift enemies worth re-rendering over). Checked in order; first hit wins.
+GENRE_GATE = [
+    (("hip-hop", "hip hop", "rap", "boom-bap", "boom bap", "trap", "drill", "emcee", "rapper"),
+     "hip hop music", ["rock music", "country music"]),
+    (("gospel",), "gospel music", ["country music"]),
+    (("reggaeton",), "latin music", ["rock music", "country music"]),
+    (("reggae", "dancehall", "rocksteady", "ska", "dub reggae", "nyabinghi", "rasta"),
+     "reggae music", ["rock music", "country music"]),
+    (("blues", "delta blues", "chicago blues"), "blues music", ["country music"]),
+    (("bluegrass",), "bluegrass music", ["rock music", "electronic dance music"]),
+    (("soul", "r&b", "rnb", "motown", "funk", "disco", "doo-wop", "doo wop"),
+     "soul music", ["country music", "rock music"]),
+    (("gypsy jazz", "bebop", "swing jazz", "jazz"), "jazz music", ["rock music", "country music"]),
+    (("house", "deep house", "tech house"), "house music", ["rock music", "country music", "folk music"]),
+    (("techno", "trance", "dubstep", "drum and bass", "drum'n'bass", "dnb",
+      "edm", "electro ", "electronic", "synthwave", "idm", "breakbeat"),
+     "electronic dance music", ["rock music", "country music", "folk music"]),
+    (("afrobeat", "afrobeats", "highlife", "amapiano"),
+     "afrobeats music", ["rock music", "country music"]),
+    (("latin", "salsa", "cumbia", "bachata", "mariachi", "bossa nova", "samba"),
+     "latin music", ["rock music", "country music"]),
+    (("folk", "americana", "singer-songwriter", "singer songwriter", "acoustic ballad"),
+     "folk music", ["electronic dance music", "hip hop music", "rock music"]),
+    (("country", "honky tonk", "honky-tonk", "outlaw country"),
+     "country music", ["rock music", "electronic dance music"]),
+    (("metal", "punk", "grunge", "hard rock", "rock"),
+     "rock music", ["country music", "electronic dance music"]),
+    (("classical", "orchestral", "symphony", "string quartet", "piano concerto"),
+     "classical orchestral music", ["rock music", "electronic dance music", "pop music"]),
+    (("ambient", "downtempo", "chillout", "chill-out", "lofi", "lo-fi beats"),
+     "ambient music", ["rock music", "country music"]),
+]
+CLAP_PY = ROOT / "engines" / "ACE-Step-1.5" / ".venv" / "bin" / "python"
+CLAP_SCRIPT = ROOT / "clap_genre_check.py"
+
+
+def _requested_genre(style_l: str):
+    for keys, label, enemies in GENRE_GATE:
+        if any(k in style_l for k in keys):
+            return label, enemies
+    return None, None
+
+
+AUTO_BLACKIFY = True  # default ON — songs auto-swap to a Black reference voice. Override with explicit voice_path or auto_voice_assist:false per-request.
+
+# General-purpose fallback voices, used when a style matches no genre keyword
+# (pop, rock, folk, EDM…). Matt 2026-07-29: "most if not all songs should be
+# black male / and black female." Genre-specific registry entries still win —
+# these are only the catch-all. Sam Cooke's soul timbre and Iman Europe's
+# contemporary tone carry the widest range of material.
+DEFAULT_BLACK_VOICES = ("Sam Cooke (Soul Stirrers)", "Iman Europe")
 
 
 _FEM_PATTERNS = [
     r"\bfemale\s+(?:vocal|voice|lead|singer|tenor|alto|soprano|contralto|mc|rapper)",
+    # 2026-07-09: "a lady singing" fell through and Matt's female hip-hop
+    # request came back male — catch natural phrasings, not just tag pairs.
+    r"\b(?:lady|ladies|woman|women|girl|female|she)\b[^,.]{0,20}\b(?:sing|rapp|rap\b|vocal|voice|mc|emcee)",
+    r"\blad(?:y|ies)\S{0,2}s?\s+voice",
+    r"\bfemale\b",
+    r"\b(?:femcee|songstress|chanteuse)\b",
     r"\bwoman\s+(?:vocal|voice|singer|lead)",
     r"\b(?:her\s+(?:vocal|voice)|she\s+sings|diva|queen\s+of\s+soul|girl\s+(?:group|singer))",
 ]
 _MALE_PATTERNS = [
     r"\bmale\s+(?:vocal|voice|lead|singer|tenor|baritone|bass|mc|rapper)",
+    r"\b(?:man|guy|dude|male|he)\b[^,.]{0,20}\b(?:sing|rapp|rap\b|vocal|voice|mc|emcee)",
     r"\bman['']?s\s+voice",
     r"\b(?:his\s+(?:vocal|voice)|he\s+sings)",
 ]
@@ -239,14 +360,18 @@ def _pick_black_voice_for_style(style: str) -> Optional[Dict[str, str]]:
         return None
     import re as _re
     style_l = style.lower()
-    # Hip-hop/rap is rhythmic speech, not melodic singing. Swapping a rap
-    # vocal onto a melodic gospel/blues reference timbre produces nonsense
-    # (smeared formants, lost diction). Skip auto-swap for those genres —
-    # ACE-Step's rap output is acceptable on its own with the prompt cue.
-    if any(k in style_l for k in (
-        "hip-hop", "hip hop", "rap", "trap", "drill", "boom-bap", "boom bap",
-    )):
+    # No vocal track, nothing to re-timbre. Matters since 2026-07-29, when the
+    # catch-all fallback below started matching styles with no genre keyword —
+    # without this an instrumental would queue a pointless voice swap.
+    if "instrumental" in style_l or "no vocal" in style_l:
         return None
+    # Hip-hop/rap USED to bail out here. The original reason was sound: swapping
+    # a rap vocal onto a MELODIC gospel/blues reference smears formants and eats
+    # diction. But that assumed the only references on disk were singers. As of
+    # 2026-07-29 the registry has a rap reference (Black Thought), so rap swaps
+    # onto a rap voice and the objection no longer applies. Matt listened to a
+    # drill render that day and called it "a white guy singing a rap song" —
+    # this early return was why no swap ever fired on hip-hop.
     # Skip the swap only if the style POSITIVELY claims a non-Black ethnicity
     # for the singer. Negation in front of the phrase ('NOT a white tenor')
     # must NOT trigger the skip — check the preceding 30 chars for negation.
@@ -273,7 +398,24 @@ def _pick_black_voice_for_style(style: str) -> Optional[Dict[str, str]]:
             continue
         candidates.append(entry)
     if not candidates:
-        return None
+        # Matt 2026-07-29: "most if not all songs should be black male" (and
+        # black female). Genre keywords only covered reggae/blues/soul/gospel/
+        # hip-hop, so anything else — pop, rock, folk, country, EDM — fell
+        # through to ACE-Step's default, which reads white. Fall back to a
+        # general-purpose reference of the requested gender. The positive
+        # ethnicity guard above still wins, so an explicit "Latin tenor" or
+        # "Korean ballad" is still respected and skips the swap entirely.
+        want = "female" if gender == "female" else "male"   # unknown/duet → male
+        fallback = next(
+            (e for e in BLACK_VOICE_REGISTRY
+             if e["gender"] == want
+             and e["voice_name"] in DEFAULT_BLACK_VOICES
+             and e["voice_path"].is_file()),
+            None,
+        )
+        if not fallback:
+            return None
+        candidates = [fallback]
     chosen = candidates[0]
     return {
         "voice_name": chosen["voice_name"],
@@ -360,36 +502,124 @@ def _save_banned(items: list) -> None:
     BANNED_PATH.write_text(json.dumps(cleaned, indent=2), encoding="utf-8")
 
 
-SYSTEM_PROMPT = (
-    "You are a working songwriter — not an AI imitating a genre. Write lyrics that "
-    "feel like a real human wrote them in a specific moment of their life.\n\n"
-    "RULES:\n"
-    "1. Output ONLY the lyrics, with [verse] and [chorus] section tags. No "
-    "commentary, no explanations, no preamble.\n"
-    "2. AVOID GENRE CLICHÉS. Don't reach for the obvious phrase — every genre has "
-    "tropes that make lyrics feel generic. Reggae lyrics shouldn't all be 'concrete "
-    "jungle / one love / Babylon'. Country lyrics shouldn't all be 'tailgate / "
-    "moonshine / Friday night'. Find a specific human moment and write THAT.\n"
-    "3. Use concrete sensory details: specific places, objects, weather, smells, "
-    "textures, time of day. Avoid abstract emotion-words (love, freedom, hope, "
-    "soul) unless they're earned by surrounding specificity.\n"
-    "4. Fresh metaphors over stock ones. Surprise the listener.\n"
-    "5. Lines must be short (4–8 words) and singable. Use the rhyme scheme the "
-    "genre traditionally uses, but the imagery should be unexpected.\n"
-    "6. If the user gave a THEME, anchor every verse in concrete details from "
-    "that theme — real nouns, real places, real objects."
+# ----- A&R brief stage (Matt 2026-07-24) -------------------------------------
+# A sound description is not a subject. Customers almost always describe the
+# SOUND they want ("reggae, old style voice, jungle sounding") and the lyric
+# model, given that as a theme, paints genre postcards — the cheese Matt heard.
+# This stage invents the actual SONG first: a person, a want, an obstacle, one
+# hook line. The lyric stage then writes THAT story. On any failure we return
+# None and the caller proceeds exactly as before (single-stage).
+BRIEF_SYSTEM = (
+    "You invent the SONG behind a customer's sound request — because a sound is not a "
+    "subject. If they named a subject, keep it and sharpen it; if not, invent one "
+    "specific person in a specific jam, true to the genre's real tradition — reggae: "
+    "rent, faith, police, small joys, wry defiance; rock and roll: cars, jobs, desire, "
+    "Saturday night, getting out of town; country: work, family, loss, pride. Small "
+    "and concrete beats big and abstract. Output exactly this, nothing else:\n"
+    "WHO IS SINGING: <one line — a specific person with a situation>\n"
+    "TALKING TO: <one line>\n"
+    "WHAT HAPPENED: <2-3 sentences, concrete, small, true to the genre>\n"
+    "THE ONE LINE: <the plain-spoken hook they would sing in the shower — words a "
+    "person actually says, given a twist>"
 )
 
 
+def _songwriting_brief(customer_ask: str) -> Optional[str]:
+    """Stage 1 of the lyric write. Returns the brief text or None (= skip)."""
+    try:
+        payload = {
+            "model": LM_MODEL,
+            "messages": [
+                {"role": "system", "content": BRIEF_SYSTEM},
+                {"role": "user", "content": f"Customer asked for: {customer_ask}"},
+            ],
+            "temperature": 1.0, "top_p": 0.92,
+            "frequency_penalty": 0.4, "presence_penalty": 0.4,
+            "max_tokens": 400,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        req = UrlRequest(LM_URL, data=json.dumps(payload).encode("utf-8"),
+                         headers={"Content-Type": "application/json"})
+        with urlopen(req, timeout=180) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        msg = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        if "WHAT HAPPENED:" in msg and "THE ONE LINE:" in msg:
+            return msg
+    except Exception as e:
+        print(f"[brief] {e}", flush=True)
+    return None
+
+
+SYSTEM_PROMPT = (
+    "You write song lyrics the way great songwriters actually write: like a person "
+    "TALKING, set to a beat. Marley, Chuck Berry, John Prine — plain speech that lands.\n"
+    "HARD RULES:\n"
+    "1. Output ONLY lyrics with [verse] and [chorus] tags. No commentary, no preamble.\n"
+    "2. Every line is a real sentence or phrase a person would SAY out loud — subject, "
+    "verb, attitude. FORBIDDEN: prop-stack lines (nouns piled up with no verb, like "
+    "'cold coffee, shaking hand' or 'copper sun, emerald blade'). If a line has no "
+    "verb, cut it.\n"
+    "3. Plain everyday words. The power is in WHAT is said, not decoration. 'Them belly "
+    "full, but we hungry' beats any pile of imagery.\n"
+    "4. The singer is talking TO someone — a lover, a boss, the police, God, a friend. "
+    "We should know who by verse one.\n"
+    "5. Something HAPPENS. Verse two is later in the story than verse one.\n"
+    "6. The chorus is one plain line that means more each time it comes back, plus one "
+    "or two answering lines. Repetition is a feature. Keep chorus lines short and singable.\n"
+    "7. Humor, anger, flirting, exhaustion — real registers. No noble-suffering poetry.\n"
+    "8. Genre cadence matters: reggae talks in short calls with room to breathe and "
+    "answers itself; rock and roll swaggers and brags in full sentences; country tells "
+    "it straight with a twist in the last line.\n"
+    "9. FORBIDDEN WORDS unless quoting someone: soul, spirit, freedom, rise up, neon, "
+    "shadows, echoes, whispers, fire as a metaphor, 'feel the rhythm/music/beat'.\n"
+    "10. No line that could sit in a greeting card or a tourism ad."
+)
+
+
+# Language request detection (2026-07-10). Phrase-anchored so instrument
+# idioms never trip it: "spanish guitar" / "french horn" stay English.
+_LANG_DETECT = [
+    ("es", "Spanish", r"\b(?:in|en)\s+spanish\b|spanish\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+spanish|\bespañol\b|\bespanol\b"),
+    ("fr", "French", r"\bin\s+french\b|french\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+french|\bfrançais\b|\bfrancais\b"),
+    ("de", "German", r"\bin\s+german\b|german\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+german|\bauf\s+deutsch\b"),
+    ("it", "Italian", r"\bin\s+italian\b|italian\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+italian"),
+    ("pt", "Portuguese", r"\bin\s+portuguese\b|portuguese\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+portuguese|\bportuguês\b"),
+    ("ja", "Japanese", r"\bin\s+japanese\b|japanese\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+japanese"),
+    ("ko", "Korean", r"\bin\s+korean\b|korean\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+korean"),
+    ("zh", "Chinese", r"\bin\s+(?:chinese|mandarin)\b|(?:chinese|mandarin)\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+(?:chinese|mandarin)"),
+    ("ru", "Russian", r"\bin\s+russian\b|russian\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+russian"),
+    ("ar", "Arabic", r"\bin\s+arabic\b|arabic\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+arabic|\bبالعربية\b|\bالعربية\b"),
+    ("hi", "Hindi", r"\bin\s+hindi\b|hindi\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+hindi|\bbollywood\s+(?:lyrics|song|vocals?)\b"),
+    ("bn", "Bengali", r"\bin\s+bengali\b|bengali\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+bengali"),
+    ("th", "Thai", r"\bin\s+thai\b|thai\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+thai"),
+    ("vi", "Vietnamese", r"\bin\s+vietnamese\b|vietnamese\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+vietnamese"),
+    ("id", "Indonesian", r"\bin\s+indonesian\b|indonesian\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+indonesian"),
+    ("tr", "Turkish", r"\bin\s+turkish\b|turkish\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+turkish"),
+    ("nl", "Dutch", r"\bin\s+dutch\b|dutch\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+dutch"),
+    ("pl", "Polish", r"\bin\s+polish\b|polish\s+(?:lyrics|vocals?|song|singing|language|version)|sings?\s+in\s+polish"),
+]
+LANG_NAMES = {c: n for c, n, _ in _LANG_DETECT}
+
+
+def _detect_language(text_l: str) -> str:
+    """Return an ISO code when the request names a lyric language, else ''."""
+    import re as _re
+    for code, _name, pat in _LANG_DETECT:
+        if _re.search(pat, text_l):
+            return code
+    return ""
+
+
 def _llm_lyrics(style: str = "", theme: str = "", banned: Optional[list] = None,
-                duration: float = 0.0) -> Optional[str]:
+                duration: float = 0.0, language: str = "en") -> Optional[str]:
     """LM lyrics with patience. The LM server restarts itself under memory
     pressure (17GB model + ACE renders share RAM) — a cold reload takes
     30-90s. Template lyrics poison the whole vocal delivery, so WAIT for the
     LM to come back rather than settling: up to 3 attempts, pausing for the
     server between them. Returns None only after honest effort."""
     for attempt in range(3):
-        out = _llm_lyrics_once(style=style, theme=theme, banned=banned, duration=duration)
+        out = _llm_lyrics_once(style=style, theme=theme, banned=banned,
+                               duration=duration, language=language)
         if out:
             return out
         # Down or cold-loading? Poll /v1/models up to ~100s before retrying.
@@ -404,7 +634,7 @@ def _llm_lyrics(style: str = "", theme: str = "", banned: Optional[list] = None,
 
 
 def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = None,
-                     duration: float = 0.0) -> Optional[str]:
+                     duration: float = 0.0, language: str = "en") -> Optional[str]:
     """Ask LM Studio (Gemma) for genre-appropriate lyrics. Returns None on any
     failure — caller falls back to _seed_lyrics()."""
     try:
@@ -417,6 +647,11 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
             + "\n".join(f"  - {b}" for b in all_banned)
         ) if all_banned else ""
 
+        lang_block = ""
+        if language and language != "en":
+            lang_block = ("\n\nLANGUAGE: write every lyric line in "
+                          f"{LANG_NAMES.get(language, language)}. Keep the structure "
+                          "tags like [chorus] and [verse] in English.")
         style_part = (style or "pop song").strip()
         theme_part = (f"\nTHEME (anchor the lyrics in this — use concrete details from it): {theme}." if theme else "").strip()
         # Short songs (≤90s) open COLD on the chorus hook — starting the sheet
@@ -445,19 +680,79 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
             )
             length_line = "Write a 1-minute song that starts singing right away.\n"
         else:
+            # Long songs open on the hook too (2026-07-29, Matt's 3-min drill
+            # song: verse-first sheet -> ACE ad-libbed "ye ye yea" for the
+            # first 30s waiting for the verse. Same fix as short songs).
             structure = (
                 "Structure:\n"
+                "[chorus] 4 short lines — the hook; the song OPENS on this\n"
                 "[verse]  4 short lines\n"
-                "[chorus] 4 short lines\n"
+                "[chorus] same chorus repeated\n"
                 "[verse]  4 short lines (DIFFERENT imagery from verse 1)\n"
                 "[chorus] same chorus repeated\n"
             )
-            length_line = "Write a 2-minute song.\n"
+            length_line = "Write a 2-minute song that starts singing right away.\n"
+        # Hip-hop asks were shipping FOLK-register lyrics (Matt's orca song,
+        # 2026-07-13: heavy rap style prompt, but the sheet came out sung
+        # nature quatrains and ACE followed the WORDS into soft-rock/country).
+        # Rule 5's "short singable lines" is right for sung genres and wrong
+        # for rap — verses must read as dense spoken BARS for the track to
+        # land hip-hop. Chorus stays a short sung hook.
+        rap_label, _rap_enemies = _requested_genre((style or "").lower())
+        if rap_label == "hip hop music" and duration and duration > 15:
+            if duration <= 45:
+                structure = (
+                    "Structure:\n"
+                    "[chorus] 4 short lines — the sung hook; the song OPENS on this\n"
+                    "[verse]  8 rapped bars\n"
+                )
+            elif duration <= 90:
+                structure = (
+                    "Structure:\n"
+                    "[chorus] 4 short lines — the sung hook; the song OPENS on this\n"
+                    "[verse]  8 rapped bars\n"
+                    "[chorus] same chorus repeated\n"
+                )
+            else:
+                # Hook-first here too — the long-form verse-first rap sheet is
+                # what gave Matt 30s of "ye ye yea" on a 3-min drill song
+                # (2026-07-29). Rap opening on the sung hook is classic form.
+                structure = (
+                    "Structure:\n"
+                    "[chorus] 4 short lines — the sung hook; the song OPENS on this\n"
+                    "[verse]  8 rapped bars\n"
+                    "[chorus] same chorus repeated\n"
+                    "[verse]  8 rapped bars (DIFFERENT imagery and rhymes from verse 1)\n"
+                    "[chorus] same chorus repeated\n"
+                )
+            structure += (
+                "\nRAP REGISTER — this is a hip-hop song; the verses are RAPPED, not sung:\n"
+                "- Every verse line is a BAR: 8-14 words, written to be spit with flow.\n"
+                "- End rhyme on every bar plus internal rhyme; multisyllable rhymes and wordplay.\n"
+                "- Inside verses bars need density — long spoken lines are right here. The CHORUS stays short and singable.\n"
+                "- Spoken rap cadence and swagger even on a nature or love theme — never a folk poem.\n"
+            )
+        # A&R stage: invent the actual song before writing lines (2026-07-24).
+        _ask = style_part + (f" — about: {theme}" if theme and theme.strip() and theme.strip() != style_part else "")
+        _brief = _songwriting_brief(_ask)
+        brief_block = ""
+        if _brief:
+            brief_block = (
+                "\nTHE SONG — the customer text above was the sound; THIS is the "
+                "subject:\n" + _brief + "\n"
+                "SONG RULES:\n"
+                "- The singer is WHO IS SINGING, talking to TALKING TO, about WHAT "
+                "HAPPENED. Stay in that voice the whole song.\n"
+                "- Build the chorus around THE ONE LINE nearly word for word.\n"
+                "- Verse 2 is later in the story than verse 1 — something moved.\n"
+                "- Slant rhyme beats forced rhyme; never sacrifice the sentence to the rhyme.\n"
+            )
         user_prompt = (
             length_line
-            + f"STYLE: {style_part}.{theme_part}\n\n"
+            + f"STYLE: {style_part}.{theme_part}\n"
+            + brief_block + "\n"
             + structure
-            + f"{ban_block}\n\n"
+            + f"{ban_block}{lang_block}\n\n"
             "Output the lyrics now."
         )
         payload = {
@@ -521,13 +816,21 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
                     print("[llm_lyrics] salvaged sheet from reasoning channel", flush=True)
         if not msg or ("[verse]" not in msg.lower() and "[chorus]" not in msg.lower()):  # jingles are [chorus]-only
             return None
-        # Belt-and-braces: if the model still slipped a banned phrase in,
-        # null out so the caller can retry or fall back. (Case-insensitive.)
-        low = msg.lower()
-        for b in all_banned:
-            if b.lower() in low:
-                print(f"[llm_lyrics] reject — slipped banned phrase: {b!r}", flush=True)
-                return None
+        # Belt-and-braces for banned phrases. Two rules learned 2026-07-18 after
+        # a paid customer song died with an auto-refund: (1) match WORD BOUNDARIES
+        # only — banned 'rust' must not nuke every lyric containing 'trust';
+        # (2) if a banned word genuinely slips in, swap it for a neutral word
+        # instead of rejecting — 8 identical retries never converge and a
+        # swapped word beats a dead song.
+        import random as _rnd_mod
+        slipped = [b for b in all_banned
+                   if re.search(r"\b" + re.escape(b) + r"\b", msg, re.IGNORECASE)]
+        if slipped:
+            _swaps = ["smoke", "static", "shadow", "echo", "ember", "gravel"]
+            _rnd = _rnd_mod.Random(len(msg))
+            for b in slipped:
+                msg = re.sub(r"\b" + re.escape(b) + r"\b", _rnd.choice(_swaps), msg, flags=re.IGNORECASE)
+            print(f"[llm_lyrics] swapped banned phrase(s) {slipped!r} (word-boundary) instead of rejecting", flush=True)
         return msg
     except Exception as e:
         print(f"[llm_lyrics] {e}", flush=True)
@@ -586,7 +889,18 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
         "unmixed", "undermastered", "porch recording", "yard recording",
     )):
         parts.append("clean mix")
-    if not has_vocal_hint:
+    req_gender = _detect_gender(style_l)
+    if req_gender == "female":
+        # The user asked for a woman — leading tokens dominate ACE's caption
+        # conditioning (jingle lesson), so the demand goes FIRST, before the
+        # user's own style text, not appended after it.
+        parts.insert(0, "female rapper, woman lead vocalist, solo female voice"
+                        if any(k in style_l for k in HIPHOP_GENRE_KEYS)
+                        else "woman lead vocalist, solo female voice")
+        parts.append("expressive female vocal, female lead singer, a woman's voice, NOT a male voice, NO male lead")
+    elif req_gender == "duet":
+        parts.append("male and female duet vocals")
+    elif not has_vocal_hint:
         parts.append("expressive male vocal")
     # Matt 2026-07-08: customers read a long instrumental intro as "half my
     # song is empty" — cue ACE to bring the singing in promptly. "first ten
@@ -595,6 +909,11 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
     if "instrumental" not in style_l and "no vocal" not in style_l:
         parts.insert(1, "vocals start immediately")
         parts.append("no instrumental intro, singing from the very first bar")
+        # "vocals start immediately" alone made ACE fill the intro with
+        # yeah-yeah ad-libs when the sheet opened on a verse (Matt's 3-min
+        # drill song, 2026-07-29) — demand real words, not vocalizations.
+        parts.append("the first words sung are the actual opening lyrics, "
+                     "no yeah-yeah ad-lib intro, no vocalization filler")
 
     # ACE-Step's vocal default skews toward white pop. For Black-rooted
     # genres, append explicit timbre + lineage cues UNLESS the user already
@@ -605,18 +924,25 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
             "white", "asian", "latin", "korean", "japanese", "chinese",
             "indian", "arabic", "celtic", "european",
         ))
-        if not contradicts and "black" not in style_l and "african" not in style_l:
+        # 2026-07-24 (Matt: "why does the reggae sound like a white guy"):
+        # saying "black man's voice" used to SKIP the reinforcement on the
+        # theory the prompt already said it — but ACE doesn't map demographic
+        # words to timbre; the reinforcement IS the translation. Skipping it
+        # made explicit requests sound WHITER than implicit ones. Always
+        # reinforce unless the style names a different ethnicity.
+        if not contradicts:
             # Hip-hop/rap needs MC framing, not gospel-singer framing — the
             # default melodic reinforcement below makes rap drift sung/white.
             # Reggae/dancehall/dub needs chesty Rasta framing — the gospel
             # reinforcement makes reggae drift toward soul curls + white tenor
             # (Matt called the first 'Mountain in the Mist' too white 2026-05-13).
+            fem = req_gender == "female"
             if any(k in style_l for k in HIPHOP_GENRE_KEYS):
-                parts.append(HIPHOP_VOCAL_REINFORCEMENT)
+                parts.append(HIPHOP_VOCAL_REINFORCEMENT_F if fem else HIPHOP_VOCAL_REINFORCEMENT)
             elif any(k in style_l for k in REGGAE_GENRE_KEYS):
-                parts.append(REGGAE_VOCAL_REINFORCEMENT)
+                parts.append(REGGAE_VOCAL_REINFORCEMENT_F if fem else REGGAE_VOCAL_REINFORCEMENT)
             else:
-                parts.append(BLACK_VOCAL_REINFORCEMENT)
+                parts.append(BLACK_VOCAL_REINFORCEMENT_F if fem else BLACK_VOCAL_REINFORCEMENT)
     return ", ".join(parts)
 
 
@@ -635,6 +961,13 @@ SIDECAR_FIELDS = (
     "published", "published_at", "published_url",  # tracks VPS state
     "kind", "auto_assist", "src_jid", "voice_name", "voice_path",  # swap-job
     "private",  # customer-app job: never in Matt's library/Music.app/VPS page
+    # Story Forge film scores. _is_library_song() has honoured these two since
+    # they were written, but they were never PERSISTED — so a forge_server
+    # restart dropped the flag and a 150s movie cue rejoined the library on the
+    # duration rule. Matt, 2026-07-29: "when I'm listening to my songs, I don't
+    # wanna hear any Hank and Doug songs or any songs that were made in story
+    # forge for movies."
+    "video_only", "is_song",
 )
 
 
@@ -895,7 +1228,7 @@ def _fuzzy_score(a: str, b: str) -> float:
     return hits / len(A)
 
 
-def _trim_long_intro(wav: Path) -> Optional[float]:
+def _trim_long_intro(wav: Path, target: float = 0.0) -> Optional[float]:
     """Guarantee vocals land early (Matt 2026-07-08). ACE ignores 'no intro'
     prompt cues often enough that 60s songs shipped with 20-30s instrumental
     openings. Deterministic fix: whisper the first 45s, find the first segment
@@ -933,9 +1266,16 @@ def _trim_long_intro(wav: Path) -> Optional[float]:
                     break
             # window start under-reports the true onset by up to 5s, so a
             # detected onset of 10 means words at 10-15s — worth trimming.
-            if onset is None or onset < 10.0 or onset > 40.0:
+            # Short deliveries (jingles / 30s tier) keep only the first
+            # `target` seconds — vocals must enter almost immediately or the
+            # exact-length cut ships intro-only audio (Lost Coast, 2026-07-09:
+            # sang at 8s, 10s keep-window faded out right as singing began).
+            short = 0 < target <= 30
+            min_onset = 4.0 if short else 10.0
+            lead = 1.0 if short else 3.0
+            if onset is None or onset < min_onset or onset > 40.0:
                 return None
-            cut = max(0.0, onset - 3.0)
+            cut = max(0.0, onset - lead)
             trimmed = Path(td) / "trimmed.wav"
             subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-ss", f"{cut:.2f}",
                             "-i", str(wav), "-af", "afade=t=in:st=0:d=0.6",
@@ -948,6 +1288,103 @@ def _trim_long_intro(wav: Path) -> Optional[float]:
     except Exception as e:
         print(f"[introtrim] {e}", flush=True)
     return None
+
+
+def _has_sung_vocals(wav: Path) -> bool:
+    """True if whisper hears real words anywhere in the render. Same 5s
+    slice-probe as _trim_long_intro (full-file whisper merges/misses sung
+    onsets). Gates lyric jobs — ACE sometimes renders a lyric sheet fully
+    instrumental (sparse jingle sheets + instrument-first styles)."""
+    try:
+        if not (WHISPER_BIN.exists() and WHISPER_MODEL.exists()):
+            return True   # can't check — never block delivery on a missing tool
+        import tempfile
+        import re as _re
+        with tempfile.TemporaryDirectory() as td:
+            probe = Path(td) / "probe.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-t", "45",
+                            "-i", str(wav), "-ar", "16000", "-ac", "1", str(probe)],
+                           capture_output=True, timeout=60)
+            for win in range(0, 40, 4):
+                sl = Path(td) / f"sl{win}.wav"
+                subprocess.run([FFMPEG, "-y", "-loglevel", "error",
+                                "-ss", str(win), "-t", "5", "-i", str(probe),
+                                str(sl)], capture_output=True, timeout=30)
+                if not sl.is_file() or sl.stat().st_size < 20_000:
+                    continue   # past the end of a short render
+                r = subprocess.run([str(WHISPER_BIN), "-m", str(WHISPER_MODEL),
+                                    "-f", str(sl), "-np"],
+                                   capture_output=True, text=True, timeout=60)
+                txt = " ".join(r.stdout.splitlines())
+                bare = _re.sub(r"\[.*?\]|\(.*?\)|♪|-->|[\d:.\s]", "", txt)
+                if len(bare) >= 10:
+                    return True
+    except Exception as e:
+        print(f"[vocalgate] {e}", flush=True)
+        return True
+    return False
+
+
+def _lead_vocal_reads_male(wav: Path) -> Optional[bool]:
+    """Demucs-isolate the OPENING 15s vocal and pitch-track it. Returns True
+    (male-ish lead), False (female-ish), or None (can't tell / tooling absent).
+    Opening window on purpose: the lead starts the song, backup singers arrive
+    at the hook and fooled a whole-file pitch pool on 2026-07-09."""
+    try:
+        if not DEMUCS_BIN.is_file():
+            return None
+        import tempfile
+        import numpy as np
+        import wave as _wave
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            head = tdp / "head.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-t", "20",
+                            "-i", str(wav), str(head)],
+                           capture_output=True, timeout=60)
+            r = subprocess.run([str(DEMUCS_BIN), "--two-stems", "vocals",
+                                "-d", "mps", "-o", str(tdp), str(head)],
+                               capture_output=True, text=True, timeout=300)
+            vocals = tdp / "htdemucs" / "head" / "vocals.wav"
+            if r.returncode != 0 or not vocals.is_file():
+                return None
+            mono = tdp / "mono.wav"
+            subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-i", str(vocals),
+                            "-ar", "16000", "-ac", "1", str(mono)],
+                           capture_output=True, timeout=60)
+            w = _wave.open(str(mono))
+            y = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+            sr = w.getframerate()
+            frame, hop = 1024, 512
+            pts = []   # (time_sec, f0)
+            for i in range(0, len(y) - frame, hop):
+                seg = y[i:i + frame] * np.hanning(frame)
+                if float(np.sqrt((seg ** 2).mean())) < 0.015:
+                    continue
+                ac = np.correlate(seg, seg, "full")[frame - 1:]
+                ac[:sr // 500] = 0
+                lag = int(np.argmax(ac[:sr // 80]))
+                if lag > 0 and ac[lag] > 0.3 * ac[0]:
+                    pts.append((i / sr, sr / lag))
+            if len(pts) < 20:
+                return None   # not enough voiced signal in the opening
+            # SAFE-RANGE rule (Matt 2026-07-09: "not come even close"): judge
+            # 4s segments so a male opener can't hide behind female hooks in
+            # a pooled median. ANY voiced segment under 175 Hz fails.
+            worst = None
+            for s0 in range(0, 20, 4):
+                seg_f0 = [f for t, f in pts if s0 <= t < s0 + 4]
+                if len(seg_f0) < 15:
+                    continue
+                m = float(np.median(np.array(seg_f0)))
+                worst = m if worst is None else min(worst, m)
+                print(f"[gendergate] {s0}-{s0 + 4}s median f0 {m:.0f} Hz ({len(seg_f0)} frames)", flush=True)
+            if worst is None:
+                return None
+            return worst < 175.0
+    except Exception as e:
+        print(f"[gendergate] {e}", flush=True)
+        return None
 
 
 def _fit_to_duration(wav: Path, target: float) -> Optional[float]:
@@ -1287,6 +1724,14 @@ def _spawn_auto_voice_assist(src_job: Dict[str, Any], voice: Dict[str, str]) -> 
         "status": "queued",
         "kind": "swap",
         "auto_assist": True,
+        # A swap carries the source's lyrics and audio, so it MUST carry its
+        # privacy too. Without this the child is private=None, which means
+        # (1) _status_last never redacts it -- the unauthenticated LAN /api/status
+        # hands out a customer's title/idea/lyrics/prompt AND the jid, and the jid
+        # alone fetches /audio/<jid>.wav; and (2) songforge_sentry.sh purges on
+        # `if s.get("private")`, so the swap NEVER expires and outlives the
+        # never-store promise forever. Found 2026-07-15.
+        "private": bool(src_job.get("private")),
         "title": new_title,
         "idea": src_job.get("idea", ""),
         "style": f"auto Black-voice swap → {voice['voice_name']}",
@@ -1305,6 +1750,62 @@ def _spawn_auto_voice_assist(src_job: Dict[str, Any], voice: Dict[str, str]) -> 
     _save_sidecar(src_job)
     threading.Thread(target=_run_swap, args=(swap_jid,), daemon=True).start()
     return swap_jid
+
+
+def _adopt_swap_result(src_jid: str, swap_jid: str) -> None:
+    """Gender enforcement: wait for the female voice swap and deliver it UNDER
+    THE ORIGINAL job id — the customer keeps polling the same song. Mirrors
+    swap stage/progress into the source job so the OwnATune stall watchdog
+    sees movement instead of yanking the job mid-swap."""
+    deadline = time.time() + 15 * 60
+    src = None
+    while time.time() < deadline:
+        time.sleep(5)
+        with JOBS_LOCK:
+            swap = JOBS.get(swap_jid)
+            src = JOBS.get(src_jid)
+        if not src:
+            return   # source deleted while we worked
+        if not swap or swap.get("status") == "error":
+            break
+        if swap.get("status") == "done":
+            swap_wav = OUT / f"{swap_jid}.wav"
+            src_wav = OUT / f"{src_jid}.wav"
+            try:
+                if swap_wav.is_file():
+                    shutil.copyfile(swap_wav, src_wav)
+            except Exception as e:
+                print(f"[gendergate] adopt copy failed: {e}", flush=True)
+                break
+            with JOBS_LOCK:
+                src["status"] = "done"
+                src["stage"] = "female lead delivered (voice swap)"
+                src["audio"] = f"/audio/{src_jid}.wav"
+                src["finished_at"] = time.time()
+                JOBS.pop(swap_jid, None)   # internal artifact, not a song
+            _save_sidecar(src)
+            _notify_done(src)
+            try:
+                swap_wav.unlink()
+            except Exception:
+                pass
+            print(f"[gendergate] {src_jid[:8]} delivered female-swapped lead", flush=True)
+            return
+        with JOBS_LOCK:
+            src["stage"] = f"re-voicing the lead as a woman… ({swap.get('stage', '')})"
+            src["progress"] = float(swap.get("progress") or 0.5)
+    # swap failed or timed out — ship the last render rather than nothing
+    with JOBS_LOCK:
+        src = JOBS.get(src_jid)
+        if src and src.get("status") != "done":
+            src["status"] = "done"
+            src["stage"] = "shipped best effort (voice swap failed)"
+            src["audio"] = f"/audio/{src_jid}.wav"
+            src["finished_at"] = time.time()
+    if src:
+        _save_sidecar(src)
+        _notify_done(src)
+    print(f"[gendergate] {src_jid[:8]} swap did not complete — shipped last render", flush=True)
 
 
 def _run_swap(jid: str) -> None:
@@ -1503,10 +2004,11 @@ def _ace_get(path: str, timeout: int = 10) -> Dict[str, Any]:
 
 
 _ACE_STATE = {"alive": False, "ts": 0.0}
+_LLM_STATE = {"alive": False, "ts": 0.0}
 
 
 def _ace_heartbeat_loop():
-    """Background heartbeat. /api/status reads the cached flag — never blocks
+    """Background heartbeat. /api/status reads the cached flags — never blocks
     the request thread waiting on ACE while it's slammed by model downloads."""
     while True:
         try:
@@ -1515,11 +2017,49 @@ def _ace_heartbeat_loop():
         except Exception:
             _ACE_STATE["alive"] = False
         _ACE_STATE["ts"] = time.time()
+        # lyrics LLM too — a node whose LLM is down looks healthy on ace_up
+        # alone, accepts jobs, then hangs at "writing your lyrics"
+        try:
+            with urlopen(LM_MODELS_URL, timeout=4):
+                pass
+            _LLM_STATE["alive"] = True
+        except Exception:
+            _LLM_STATE["alive"] = False
+        _LLM_STATE["ts"] = time.time()
         time.sleep(3)
 
 
 def _ace_alive() -> bool:
     return _ACE_STATE["alive"]
+
+
+_WARM_CACHE = {"ts": 0.0, "warm": True}
+
+
+def _engines_warm() -> bool:
+    """True when the engines' weights are actually RESIDENT, not merely loaded.
+
+    `ace_up` only says the process answers /health. macOS will happily page a
+    fully "initialized" ACE down to a 1GB RSS, and a job routed to it then eats
+    a ~3 minute page-in before a note plays — that is what stalled two customer
+    songs on 2026-07-27. forge_guard (:8790) tracks resident size against each
+    engine's own high-water mark, so ask it. No guard = say warm, so this can
+    never make routing worse than it was."""
+    now = time.time()
+    if now - _WARM_CACHE["ts"] < 10:
+        return _WARM_CACHE["warm"]
+    warm = True
+    try:
+        with urlopen("http://127.0.0.1:8790/api/state", timeout=3) as r:
+            warm = bool(json.loads(r.read().decode()).get("forge_ok", True))
+    except Exception:
+        pass
+    _WARM_CACHE.update({"ts": now, "warm": warm})
+    return warm
+
+
+def _llm_alive() -> bool:
+    return _LLM_STATE["alive"]
 
 
 # tqdm progress lines look like:
@@ -1675,14 +2215,146 @@ def _worker():
                                 req = UrlRequest(url, headers={"Accept": "audio/wav"})
                                 with urlopen(req, timeout=120) as r, open(local, "wb") as f:
                                     shutil.copyfileobj(r, f)
+                            # Vocal gate (Matt 2026-07-09): a job WITH lyrics
+                            # must actually sing them — never ship instrumental.
+                            style_l2 = (job.get("style") or job.get("idea") or "").lower()
+                            wants_vocals = bool((job.get("lyrics") or "").strip()) \
+                                and "instrumental" not in style_l2 \
+                                and "no vocal" not in style_l2
+                            if wants_vocals:
+                                job["stage"] = "checking the vocals landed…"
+                            if wants_vocals and not _has_sung_vocals(local):
+                                rescued = False
+                                for alt in (job.get("ace_cache_files") or [])[1:]:
+                                    ap2 = Path(alt)
+                                    if ap2.is_file() and _has_sung_vocals(ap2):
+                                        shutil.copyfile(ap2, local)
+                                        rescued = True
+                                        print(f"[vocalgate] {job['id'][:8]} variant 1 instrumental — shipped variant 2 (sings)", flush=True)
+                                        break
+                                if not rescued:
+                                    tries = job.get("vocal_retries", 0)
+                                    if tries < 2:
+                                        with JOBS_LOCK:
+                                            job["vocal_retries"] = tries + 1
+                                            ap = job["ace_payload"]
+                                            if tries == 0:
+                                                # sparse sheets are the #1 cause —
+                                                # double the sheet, lead with the singer
+                                                ly = job.get("lyrics") or ""
+                                                ap["lyrics"] = ly + "\n\n" + ly
+                                                lead = ("catchy sung jingle" if float(job.get("duration") or 0) <= 30
+                                                        else "vocal song")
+                                                ap["prompt"] = f"{lead}, male lead vocal singing the tagline, " + ap.get("prompt", "")
+                                            else:
+                                                ap["prompt"] = "vocal-forward mix, loud clear singing voice front and center, " + ap.get("prompt", "")
+                                            job["ace_task_id"] = None
+                                            job["status"] = "queued"
+                                            job["progress"] = 0.0
+                                            job["stage"] = "vocals missing — re-forging with the singer up front"
+                                        print(f"[vocalgate] {job['id'][:8]} no vocals heard — re-render {tries + 1}/2", flush=True)
+                                        continue
+                                    print(f"[vocalgate] {job['id'][:8]} still instrumental after 2 re-renders — shipping as-is", flush=True)
                             job["stage"] = "tightening the intro…"
                             target = float(job.get("duration") or 0)  # what the customer bought
-                            cut = _trim_long_intro(local)
+                            cut = _trim_long_intro(local, target)
                             if cut:
                                 print(f"[introtrim] {job['id'][:8]} cut {cut:.1f}s of instrumental intro", flush=True)
                             fitted = _fit_to_duration(local, target)
                             if fitted:
                                 print(f"[fitdur] {job['id'][:8]} tail-trimmed to exactly {fitted:.0f}s", flush=True)
+                            # Gender gate (2026-07-09): a female request whose
+                            # delivered lead reads male gets re-rendered — ACE
+                            # has no gender switch, caption pressure is all
+                            # there is. Judged on the post-trim audio: that is
+                            # exactly what the customer will hear first.
+                            if _detect_gender((job.get("style") or job.get("idea") or "").lower()) == "female":
+                                job["stage"] = "checking the lead voice…"
+                                reads_male = _lead_vocal_reads_male(local)
+                                gtries = job.get("gender_retries", 0)
+                                if reads_male is True and gtries < 3:
+                                    with JOBS_LOCK:
+                                        job["gender_retries"] = gtries + 1
+                                        ap = job["ace_payload"]
+                                        ap["prompt"] = ("ONLY female voices, a woman raps and sings every word, "
+                                                        "zero male vocals anywhere, " + ap.get("prompt", ""))
+                                        job["ace_task_id"] = None
+                                        job["status"] = "queued"
+                                        job["progress"] = 0.0
+                                        job["stage"] = "lead came out male — re-forging with a woman up front"
+                                    print(f"[gendergate] {job['id'][:8]} male-range voice on a female request — re-render {gtries + 1}/3", flush=True)
+                                    continue
+                                if reads_male is True:
+                                    # Prompt pressure exhausted — GUARANTEE the
+                                    # request with the seed-vc female reference:
+                                    # every voice on the track becomes female.
+                                    # Hip-hop gets Lady Flow (Matt's pick, the
+                                    # "Divine Tribe Hemp Anthem (Lady Flow)" lead,
+                                    # 2026-07-13) — Mahalia's gospel timbre reads
+                                    # wrong on a rap track. Everything else keeps
+                                    # Mahalia.
+                                    _fg_label, _fg_en = _requested_genre((job.get("style") or "").lower())
+                                    lady = ROOT / "voice_refs" / "lady_flow.wav"
+                                    if _fg_label == "hip hop music" and lady.is_file():
+                                        fem_name, fem_ref = "Lady Flow", lady
+                                    else:
+                                        # 2026-07-25: Iman Europe is Matt's pick for the default
+                                        # female voice (215Hz center, wide warm range, ref from
+                                        # "Kryptonite"). Mahalia stays for explicit gospel via
+                                        # the registry.
+                                        fem_name, fem_ref = "Iman Europe", ROOT / "voice_refs" / "iman_europe.wav"
+                                    if fem_ref.is_file() and DEMUCS_BIN.is_file():
+                                        with JOBS_LOCK:
+                                            job["ace_task_id"] = None
+                                            job["status"] = "running"
+                                            job["progress"] = 0.35
+                                            job["stage"] = "re-voicing the lead as a woman…"
+                                        swap_jid = _spawn_auto_voice_assist(job, {
+                                            "voice_name": fem_name,
+                                            "voice_path": fem_ref,
+                                            "gender": "female"})
+                                        if swap_jid:
+                                            with JOBS_LOCK:
+                                                if swap_jid in JOBS:
+                                                    JOBS[swap_jid]["private"] = True
+                                            threading.Thread(target=_adopt_swap_result,
+                                                             args=(job["id"], swap_jid),
+                                                             daemon=True).start()
+                                            print(f"[gendergate] {job['id'][:8]} prompt pressure exhausted — female voice swap {swap_jid[:8]}", flush=True)
+                                            continue
+                                    print(f"[gendergate] {job['id'][:8]} still male, swap unavailable — shipping best effort", flush=True)
+                            # Genre gate (2026-07-09): asked hip-hop, got
+                            # rock'n'roll? CLAP-score the delivered audio and
+                            # re-render on a confident wrong-genre verdict.
+                            # Vocal tracks only — CLAP misreads instrumentals.
+                            g_label, g_enemies = _requested_genre(style_l2)
+                            if wants_vocals and g_label and CLAP_SCRIPT.is_file() and CLAP_PY.is_file():
+                                job["stage"] = "checking the genre landed…"
+                                try:
+                                    gr = subprocess.run(
+                                        [str(CLAP_PY), str(CLAP_SCRIPT), str(local), g_label] + g_enemies,
+                                        capture_output=True, text=True, timeout=240)
+                                    gv = json.loads((gr.stdout or "{}").strip().splitlines()[-1])
+                                except Exception as e:
+                                    gv = {"verdict": "skip", "reason": str(e)}
+                                print(f"[genregate] {job['id'][:8]} asked {g_label} -> {gv}", flush=True)
+                                if gv.get("verdict") == "fail":
+                                    gtr = job.get("genre_retries", 0)
+                                    if gtr < 2:
+                                        wrong = (gv.get("top") or [["another genre", 0]])[0][0]
+                                        with JOBS_LOCK:
+                                            job["genre_retries"] = gtr + 1
+                                            ap = job["ace_payload"]
+                                            ap["prompt"] = (f"PURE {g_label}, authentic {g_label} rhythm section "
+                                                            f"and instrumentation, absolutely NOT {wrong}, "
+                                                            + ap.get("prompt", ""))
+                                            job["ace_task_id"] = None
+                                            job["status"] = "queued"
+                                            job["progress"] = 0.0
+                                            job["stage"] = "wrong genre came back — re-forging"
+                                        print(f"[genregate] {job['id'][:8]} {wrong} on a {g_label} request — re-render {gtr + 1}/2", flush=True)
+                                        continue
+                                    print(f"[genregate] {job['id'][:8]} still off-genre after 2 re-renders — shipping best effort", flush=True)
                             # bookkeeping: store what actually ships
                             if cut and not fitted and target:
                                 job["duration"] = max(15.0, target + 20.0 - cut) if target <= 220 else max(15.0, target - cut)
@@ -1712,7 +2384,8 @@ def _worker():
                     job["last_error"] = stage or "unknown"
         except Exception as e:
             print("[worker]", e, flush=True)
-        time.sleep(2)
+        # 2s→0.5s (Matt 2026-07-18): up to 4s of a 15s job was tick latency.
+        time.sleep(0.5)
 
 
 # ----- queue dispatcher + zombie reaper ---------------------------------------
@@ -1764,7 +2437,8 @@ def _dispatch_loop():
                         for _ in range(3):
                             lyr = _llm_lyrics(style=nxt.get("style", ""),
                                               theme=nxt.get("title") or nxt.get("idea") or "",
-                                              duration=float(nxt.get("duration") or 0)) or ""
+                                              duration=float(nxt.get("duration") or 0),
+                                              language=(nxt.get("ace_payload") or {}).get("vocal_language", "en")) or ""
                             if lyr:
                                 break
                         if not lyr:
@@ -1812,7 +2486,8 @@ def _dispatch_loop():
                     print(f"[dispatch] {nxt['id'][:8]} submit failed: {e}", flush=True)
         except Exception as e:
             print("[dispatch]", e, flush=True)
-        time.sleep(2)
+        # 2s→0.5s (Matt 2026-07-18): pick new jobs up near-instantly.
+        time.sleep(0.5)
 
 
 # ----- "song's done" text to Matt's phone -------------------------------------
@@ -1854,11 +2529,33 @@ def _notify_done(job: Dict[str, Any]) -> None:
 
 
 # ----- scratch pruner ---------------------------------------------------------
+# /api/status is unauthenticated and LAN-reachable (the server binds 0.0.0.0 so
+# Matt's iPhone PWA can reach it). It must never hand out a customer-app song:
+# not the lyrics, not the prompt, not the jid -- the jid alone fetches the audio
+# from /audio/<jid>.wav, which is also unauthenticated. Status may say a job is
+# running and how far along it is. Nothing more.
+_STATUS_SAFE = ("status", "stage", "progress", "created_at", "finished_at",
+                "duration", "private")
+
+
+def _status_last(j):
+    if not j:
+        return None
+    if not j.get("private"):
+        return j
+    return {k: j[k] for k in _STATUS_SAFE if k in j}
+
+
 def _prune_scratch_loop():
-    """Every 6h: drop voice_swap_work/ dirs older than 7 days (failed swaps
+    """Every 15 min: drop voice_swap_work/ dirs older than 7 days (failed swaps
     leave their demucs/seed-vc intermediates behind — ~25MB each) and ACE
-    cache wavs older than 3 days that no job references. Never touches
-    outputs/ — that's the library."""
+    cache wavs older than 1h that no job references. Never touches
+    outputs/ — that's the library.
+
+    Cadence was 6h until 2026-07-15. The 1h age threshold is the never-store
+    promise, but a 6h sweep meant an unreferenced ACE render — a raw copy of a
+    customer's song — could sit on disk for up to 7h. The sweep is a few stats;
+    run it often enough that the threshold is the real bound, not the loop."""
     while True:
         try:
             now = time.time()
@@ -1879,13 +2576,13 @@ def _prune_scratch_loop():
                     try:
                         if f.resolve() in referenced:
                             continue
-                        if now - f.stat().st_mtime > 3 * 86400:
+                        if now - f.stat().st_mtime > 3600:
                             f.unlink()
                     except Exception:
                         pass
         except Exception as e:
             print("[prune]", e, flush=True)
-        time.sleep(6 * 3600)
+        time.sleep(900)
 
 
 # ----- HTTP handler ----------------------------------------------------------
@@ -2023,9 +2720,11 @@ class Handler(BaseHTTPRequestHandler):
                 latest = sorted(JOBS.values(), key=lambda j: j.get("created_at", 0), reverse=True)
             return self._json({
                 "ace_up": _ace_alive(),
+                "llm_up": _llm_alive(),
+                "warm": _engines_warm(),
                 "jobs_total": len(latest),
                 "jobs_running": sum(1 for j in latest if j.get("status") in ("queued","running")),
-                "last": latest[0] if latest else None,
+                "last": _status_last(latest[0]) if latest else None,
                 "download": _ace_download_status(),
             })
         if u.path == "/api/songs":
@@ -2269,6 +2968,13 @@ class Handler(BaseHTTPRequestHandler):
             duration = max(8.0, min(duration, 240.0))  # 8s floor for 10s jingles
 
             language = (body.get("language") or "en").strip().lower() or "en"
+            if language == "en":
+                # Nothing explicit from the caller — honor "in Spanish"-style
+                # requests written into the song description itself.
+                _det = _detect_language(f"{style} {idea}".lower())
+                if _det:
+                    language = _det
+                    print(f"[lang] detected {LANG_NAMES.get(_det, _det)} request", flush=True)
             # Default guidance_scale lowered from 15.0 → 10.0 on 2026-05-13
             # because Matt felt outputs were "too produced and white" —
             # high guidance over-forces ACE-Step's polished modern-pop
@@ -2322,8 +3028,34 @@ class Handler(BaseHTTPRequestHandler):
             count = max(1, min(count, 10))
             notify = bool(body.get("notify"))
             private = bool(body.get("private"))
+            # Story Forge asks for film music through this same endpoint. The
+            # engine renders it exactly as normal; it just never counts as a
+            # library song (see _is_library_song), so it stays out of Matt's
+            # music library, Music.app and the public songs page.
+            video_only = bool(body.get("video_only"))
+            is_song = bool(body.get("is_song"))
 
-            jid = uuid.uuid4().hex
+            # Caller-supplied id (2026-07-09): the OwnATune app re-dispatches a
+            # stalled job to another render node under the SAME id so the
+            # client's polling never notices the move.
+            jid = re.sub(r"[^0-9a-f]", "", str(body.get("id") or "").lower())[:32]
+            if jid and jid in JOBS:
+                # Re-dispatch collision (2026-07-09): the app only re-offers an
+                # id when it thinks that job is lost (a failed cross-node
+                # DELETE left our copy behind). If our copy is queued, running,
+                # or already DONE, hand the same id straight back so the caller
+                # re-attaches — minting a fresh uuid here stranded finished
+                # songs behind an id the app refused to adopt. Only an errored
+                # copy is cleared and rebuilt under its old id.
+                with JOBS_LOCK:
+                    old = JOBS.get(jid) or {}
+                    if old.get("status") in ("queued", "running", "done"):
+                        return self._json({"id": jid, "ids": [jid],
+                                           "reattached": old.get("status"),
+                                           "voice_assist": old.get("voice_assist")})
+                    JOBS.pop(jid, None)
+            if not jid:
+                jid = uuid.uuid4().hex
             # Auto-Blackify: if the style hits a Black-rooted genre, queue a
             # voice swap to a real Black vocalist after ACE-Step finishes.
             # User can opt out per-request with auto_voice_assist:false, or
@@ -2362,6 +3094,8 @@ class Handler(BaseHTTPRequestHandler):
                         "voice_assist": voice_assist,
                         "notify": notify,
                         "private": private,
+                        "video_only": video_only,
+                        "is_song": is_song,
                     }
                     ids.append(j)
             return self._json({"id": jid, "ids": ids, "voice_assist": voice_assist})
@@ -2455,6 +3189,10 @@ class Handler(BaseHTTPRequestHandler):
                     "id": new_jid,
                     "status": "queued",
                     "kind": "swap",
+                    # Inherit privacy with the content -- see the note in
+                    # _spawn_auto_voice_assist. A swap of a private song is a
+                    # private song.
+                    "private": bool(src.get("private")),
                     "title": new_title,
                     "idea": src.get("idea", ""),
                     "style": f"voice-swapped to {tag}",
