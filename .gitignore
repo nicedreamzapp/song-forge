@@ -35,3 +35,14 @@ android/app/build/
 android/.gradle/
 android/local.properties
 **/.DS_Store
+
+# host infrastructure — NEVER commit these to a public repo.
+# Supervisors, memory guards and agent notes describe the machines this runs
+# on (ports, LAN addresses, filesystem paths) and are not part of the product.
+/AGENT_NOTES*.md
+/m5_supervisor.sh
+/forge_guard.py
+/mem_client.py
+/clap_genre_check.py
+/TODO.md
+/README_TODO.md
