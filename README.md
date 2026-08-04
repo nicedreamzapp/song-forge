@@ -1,12 +1,14 @@
+<div align="center">
+
 # 🎙 Song Forge
 
-**Type a vibe. Get a whole song. No cloud, no subscription, no API keys.**
+### Type a vibe. Get a whole song.
 
-<div align="center">
+No cloud, no subscription, no API keys. Everything runs on your own machine.
 
 ### [![Download on the App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/id6788616929) [![Get it on Google Play](https://img.shields.io/badge/Get_it_on-Google_Play-01875f?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune)
 
-**[Get Song Forge on the App Store](https://apps.apple.com/us/app/id6788616929)** — free, 10 songs on the house. No subscription, no account, no email.
+**Get Song Forge on [iPhone](https://apps.apple.com/us/app/id6788616929) or [Android](https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune)** — free, 10 songs on the house. No subscription, no account, no email.
 
 </div>
 
