@@ -4,7 +4,7 @@
 
 <div align="center">
 
-### [![Download on the App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/id6788616929)
+### [![Download on the App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/id6788616929) [![Get it on Google Play](https://img.shields.io/badge/Get_it_on-Google_Play-01875f?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune)
 
 **[Get Song Forge on the App Store](https://apps.apple.com/us/app/id6788616929)** — free, 10 songs on the house. No subscription, no account, no email.
 
@@ -18,13 +18,13 @@ This repo holds both platforms, cleanly separated:
 
 The Song Forge iPhone app plus the local Mac render engine (`forge_server.py`, `forge_supervisor.sh`) that powers it, and docs. Full source in [`ios/`](ios/).
 
-**Status:** ✅ [Live on the App Store](https://apps.apple.com/us/app/id6788616929).
+**Status:** ✅ **Live on the App Store and Google Play** — [iPhone](https://apps.apple.com/us/app/id6788616929) · [Android](https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune).
 
 ## 🤖 Android
 
 The Android port. Source in [`android/`](android/).
 
-**Status:** Submitted to Google Play — review in progress (July 2026). The code is available now in [`android/`](android/).
+**Status:** ✅ [Live on Google Play](https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune). Source in [`android/`](android/).
 
 ## Links
 
