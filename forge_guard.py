@@ -61,12 +61,26 @@ LOG_FILE = Path(os.getenv("FORGE_GUARD_LOG", "/tmp/forge_guard.log"))
 FORGE_PORTS = [int(p) for p in
                os.getenv("FORGE_PORTS", "8001,9420,8767,8770").split(",") if p.strip()]
 
+# The subset of FORGE_PORTS whose warmth actually reflects model weights —
+# only these gate forge_ok (the warm-first routing signal). Frontends stay
+# protected via FORGE_PORTS but never mark the node cold.
+WARM_GATE_PORTS = {int(p) for p in
+                   os.getenv("FORGE_WARM_GATE_PORTS", "8001,9420").split(",") if p.strip()}
+
 # Fraction of physical RAM we are willing to promise in total. The rest is the
 # slack macOS itself needs (wired, file cache, the compressor's own working set).
 SAFETY = float(os.getenv("FORGE_GUARD_SAFETY", "0.86"))
 # Never let the reservation fall below this, even before the engines have been
 # measured — a cold guard must not hand the whole box away.
 RESERVE_FLOOR_GB = float(os.getenv("FORGE_RESERVE_FLOOR_GB", "34"))
+# ...and never above this. Measuring the engines honestly (phys_footprint, added
+# 2026-08-01) moved ACE from an apparent 15.6GB to a real 34GB, with a 62GB PEAK
+# recorded during a decode. Reserving an all-time peak would leave ~24GB for the
+# whole rest of the machine and no render could ever be seated again — the guard
+# would have replaced "freezes the box" with "nothing ever runs", which is not an
+# improvement. Reserve the warm steady state; the enforcement sweep is what
+# protects Song Forge through a transient spike.
+RESERVE_CAP_GB = float(os.getenv("FORGE_RESERVE_CAP_GB", "60"))
 # Swap thresholds. The 7/27 panic ran up 19GB of swap across 20 swapfiles.
 SWAP_WARN_GB = float(os.getenv("FORGE_SWAP_WARN_GB", "2"))
 SWAP_CRIT_GB = float(os.getenv("FORGE_SWAP_CRIT_GB", "6"))
@@ -90,6 +104,9 @@ HOG_GB = float(os.getenv("FORGE_HOG_GB", "4"))      # "heavy" for the sweep
 # it becomes adjustable too — Matt's rule is that the OTHER program adjusts,
 # and that can't only apply to programs we remembered to name.
 BIG_UNLEASED_GB = float(os.getenv("FORGE_BIG_UNLEASED_GB", "12"))
+# How far past its grant a job may drift before the log says so by name. It is
+# never a kill trigger — an overrun already pays for itself by being charged.
+OVERRUN_GB = float(os.getenv("FORGE_OVERRUN_GB", "8"))
 TICK = float(os.getenv("FORGE_GUARD_TICK", "10"))
 LEASE_TTL = float(os.getenv("FORGE_LEASE_TTL", "1800"))
 KILL_AFTER_TICKS = int(os.getenv("FORGE_KILL_AFTER_TICKS", "6"))  # ~1min critical
@@ -113,14 +130,71 @@ ADJUSTABLE = [
     ("qwen_vl", "mlx_vlm"),
     ("wan", "wan_"),
     ("flux", "flux_"),
+    # 2026-07-31: forge-shot carries the ~18GB VL judge IN-PROCESS while it waits
+    # on an mflux subprocess. It matched nothing here, so it was "unregistered",
+    # looked idle, and evict-idle SIGTERMed two consecutive stills runs at
+    # 13:34 and 14:27. Registered + leasing (storyforge-still/animate) it is
+    # evicted LAST instead of first — still adjustable, customers still win.
+    ("storyforge", "forge-shot"),
+    ("flux", "mflux-generate"),
+    # 2026-08-03: the Local AI Setup launchers (Narrative Gemma et al.) run an
+    # Anthropic-protocol shim on :4000 that holds a ~18GB Gemma 4 31B. Its CPU
+    # reads ~0 during a GPU prefill, so at 15:34:51 evict-idle SIGTERMed it
+    # mid-request and Claude Code spun on ConnectionRefused for the rest of the
+    # session. Same shape as the forge-shot case above: name it and let it
+    # lease, so it is evicted LAST instead of first.
+    ("localclaude", "mlx-native-server/server.py"),
+    # 2026-08-07: the launchers' shared in-process agent (Qwen 3 Coder /
+    # Gemma 4 / Narrative Gemma windows) holds its ~18-31GB directly in
+    # agent.py, leased under names prefixed "agent-". Before it was registered
+    # here, every double-click was granted a seat and then evict-idle SIGTERMed
+    # the "unregistered" process seconds later (01:48:09, 01:48:40, 01:53:18
+    # tonight). Fourth instance of the same lesson as comfyui / forge-shot /
+    # localclaude above.
+    ("local-agent", "Local AI Setup/agent/agent.py"),
+    # 2026-08-10: the Agent-12 benchmark runner imports the same agent.py
+    # in-process (cmdline says runner.py, so the pattern above never fires).
+    # Its 31GB was double-charged — counted as resident AND its agent- lease
+    # looked unspent — and the guard SIGSTOPped it mid-benchmark at 01:02.
+    # Fifth instance of the comfyui / forge-shot / localclaude lesson.
+    ("local-agent", "agent12/runner.py"),
+    # 2026-08-10 11:12: bench-video narration (ChatterboxTTS in chatterbox-env)
+    # leases as "chatterbox-narr" but its cmdline says gen_narration.py — the
+    # guard saw a 56GB "unregistered" hog and SIGTERMed it mid-render. Sixth
+    # instance of the register-your-programs lesson.
+    ("chatterbox", "gen_narration.py"),
+    # 2026-08-26 18:28: the Hive Strike background renders lease as
+    # "hive-ltx2-render" but their cmdline is the mlx_video module path, so the
+    # guard saw a 45GB+ "unregistered" hog and SIGTERMed a 7-second HD clip ten
+    # minutes in, during stage 2. Seventh instance of the register-your-programs
+    # lesson (comfyui / forge-shot / localclaude / local-agent / agent12 /
+    # chatterbox above).
+    ("ltx2", "mlx_video.models.ltx_2"),
 ]
 # Which lease names mean "this program asked for its room". Used to decide who
 # adjusts first — the program that went through admission control is protected
 # ahead of the one that just allocated.
 LEASE_LABELS = {
-    "comfyui": ("storyforge-still", "storyforge-animate"),
+    # ComfyUI is NOT used during a still pass — mflux is. Mapping it onto the
+    # still lease meant a ComfyUI that had not been reclaimed yet was charged to
+    # whichever still pass happened to be live, which taught the guard that a
+    # still costs 59GB (2026-08-01). The clamped hint then made every still ask
+    # for 45 of a 50GB budget, one pass reserved nearly the whole box while using
+    # almost none of it, and c1_celebration was BLOCKED after five refusals for a
+    # memory problem this accounting invented. Animate only.
+    "comfyui": ("storyforge-animate",),
     "film_qc": ("film-qc-vl", "storyforge-vl_qc"),
     "qwen_vl": ("film-qc-vl", "storyforge-vl_qc"),
+    "storyforge": ("storyforge-still", "storyforge-animate"),
+    # The subprocesses a storyforge phase spends its grant ON. Without these the
+    # charge is counted twice: mflux's memory shows up as resident AND the still
+    # lease still looks entirely unspent (2026-08-01).
+    "flux": ("storyforge-still",),
+    "wan": ("storyforge-animate",),
+    "localclaude": ("localclaude",),
+    "local-agent": ("agent-",),
+    "chatterbox": ("chatterbox-narr",),
+    "ltx2": ("hive-ltx2-render", "ltx2-render"),
 }
 # Never signalled under any circumstances, whatever they weigh.
 PROTECTED_PAT = re.compile(
@@ -140,6 +214,25 @@ for _pair in os.getenv("FORGE_ENGINE_GB", "8001:16,9420:16").split(","):
         _p, _g = _pair.split(":", 1)
         try:
             ENGINE_MIN_GB[_p.strip()] = float(_g)
+        except ValueError:
+            pass
+
+# Ceiling on the yardstick the WARM test measures against — the engine's warm
+# steady state, not its all-time peak. Same reasoning as RESERVE_CAP_GB above:
+# high-water only ever ratchets up, so one transient decode spike poisons it
+# forever. ACE recorded a 122GB high-water on 2026-08-03 (a decode spike under
+# the honest phys_footprint accounting added 8/01) against a real resting size
+# of 35GB. That put the warm bar at 61GB — unreachable — so this M5 reported
+# cold permanently while rendering an 8s clip in 12 seconds, and the customer
+# app's warm-first routing was one mini-goes-warm away from sending every song
+# to the slower box. High-water still sizes the RESERVATION; it no longer
+# decides warmth. Set a port to 0 to opt out and use pure high-water.
+WARM_REF_CAP_GB = {}
+for _pair in os.getenv("FORGE_WARM_REF_GB", "8001:36,9420:28").split(","):
+    if ":" in _pair:
+        _p, _g = _pair.split(":", 1)
+        try:
+            WARM_REF_CAP_GB[_p.strip()] = float(_g)
         except ValueError:
             pass
 
@@ -173,6 +266,10 @@ def _swap_gb():
 
 
 _SWAP_RATE = {"t": 0.0, "outs": 0, "rate": 0.0}
+# Shortest interval that yields a meaningful pages-per-minute figure. Samples
+# closer together than this reuse the last measurement instead of overwriting
+# the baseline — see the comment in _swap_rate_mb_min.
+RATE_WINDOW_S = float(os.getenv("FORGE_RATE_WINDOW_S", "20"))
 
 
 def _swap_rate_mb_min():
@@ -194,10 +291,26 @@ def _swap_rate_mb_min():
             return 0.0
         outs, now = int(m.group(1)), time.time()
         prev_t, prev_o = _SWAP_RATE["t"], _SWAP_RATE["outs"]
+        if not prev_t or outs < prev_o:        # first tick / counter reset
+            _SWAP_RATE["t"], _SWAP_RATE["outs"] = now, outs
+            return _SWAP_RATE["rate"]
+        dt = now - prev_t
+        if dt < RATE_WINDOW_S:
+            # TOO SOON TO MEASURE — and the baseline must NOT move.
+            #
+            # 2026-08-01, caught live: sample() runs on the 10s enforce tick AND
+            # on every GET /api/state, and this function used to advance its
+            # baseline on every call. Two samples 200ms apart see the same
+            # swapout counter, so the computed rate is 0 — and anyone polling the
+            # health endpoint (a monitor, mem_client.state(), the customer app)
+            # was silently pinning the rate at zero. During a real event the box
+            # had put 7.1GB into swap in four minutes, ~1800MB/min, and the guard
+            # reported swap_rate_mb_min: 0.0. Swap RATE is the ONLY admissible
+            # panic signal (story-forge CLAUDE.md rule 20) and health checks were
+            # erasing it. Measure over a real window, keep the last true reading
+            # in between.
+            return _SWAP_RATE["rate"]
         _SWAP_RATE["t"], _SWAP_RATE["outs"] = now, outs
-        if not prev_t or outs < prev_o:
-            return _SWAP_RATE["rate"]          # first tick / counter reset
-        dt = max(now - prev_t, 1.0)
         _SWAP_RATE["rate"] = (outs - prev_o) * 16384 / (1024.0**2) * (60.0 / dt)
         return _SWAP_RATE["rate"]
     except Exception:
@@ -281,8 +394,45 @@ def _rss_of(pid):
         return 0.0
 
 
+_FOOTPRINT = "/usr/bin/footprint"
+_FP_UNITS = {"B": 1.0, "KB": 1024.0, "MB": 1024.0 ** 2, "GB": 1024.0 ** 3,
+             "TB": 1024.0 ** 4}
+
+
+def _footprint_gb(pid):
+    """phys_footprint for one pid — RSS *plus* the memory RSS cannot see.
+
+    2026-08-01, measured on this box: a 6GB torch MPS allocation moved `ps rss`
+    by 0.04GB and phys_footprint by 6.26GB. Metal/GPU buffers are wired into the
+    task and never counted as resident, so every render this guard has ever
+    sized was measured at a fraction of its true weight — story-forge CLAUDE.md
+    rule 20 wrote that down as "the guard saw ComfyUI at 9.8GB while it held
+    ~32GB… sizing policy off RSS under-measures a render by 3x" and it is
+    exactly right. Admission control cannot be honest on RSS.
+
+    ~30ms per call, so it is only run on the handful of processes that matter.
+    Falls back to 0 (caller keeps RSS) if footprint is unavailable.
+    """
+    try:
+        out = subprocess.run([_FOOTPRINT, "-p", str(pid)],
+                             capture_output=True, text=True, timeout=8).stdout
+    except Exception:
+        return 0.0
+    m = re.search(r"phys_footprint:\s+([\d.]+)\s*([KMGT]?B)", out)
+    if not m:
+        return 0.0
+    return float(m.group(1)) * _FP_UNITS.get(m.group(2), 1.0) / GB
+
+
 def _procs():
-    """[(pid, rss_gb, cpu, command)] for everything over 1GB resident."""
+    """[(pid, rss_gb, cpu, command)] for everything worth accounting for.
+
+    The floor used to be a flat 1GB RSS, which is another way of not seeing GPU
+    memory: a ComfyUI holding 40GB of wired Wan weights can sit at 0.3GB RSS
+    between allocations and drop off this list entirely. Anything matching a
+    known heavy program is kept whatever its RSS says, and _footprint_gb has the
+    final word on how big it is.
+    """
     try:
         r = subprocess.run(["ps", "-axo", "pid=,rss=,pcpu=,command="],
                            capture_output=True, text=True, timeout=15).stdout
@@ -298,7 +448,7 @@ def _procs():
         except ValueError:
             continue
         gb = rss / 1048576.0
-        if gb >= 1.0:
+        if gb >= 1.0 or any(pat in parts[3] for _, pat in ADJUSTABLE):
             out.append((pid, gb, cpu, parts[3]))
     return out
 
@@ -313,6 +463,8 @@ class Guard:
         self.paused = {}          # pid -> {"since": ts, "label": str}
         self.crit_ticks = 0
         self.highwater = {}       # str(port) -> GB, persisted
+        self.peaks = {}           # lease key -> measured peak GB, persisted
+        self._over_logged = {}    # lease id -> last overrun log ts
         self.last = {}            # last sample, served by /api/state
         self._load_state()
 
@@ -322,12 +474,16 @@ class Guard:
             d = json.loads(STATE_FILE.read_text())
             self.highwater = {str(k): float(v)
                               for k, v in d.get("highwater", {}).items()}
+            self.peaks = {str(k): float(v)
+                          for k, v in d.get("peaks", {}).items()}
         except Exception:
             self.highwater = {}
+            self.peaks = {}
 
     def _save_state(self):
         try:
             STATE_FILE.write_text(json.dumps({"highwater": self.highwater,
+                                              "peaks": self.peaks,
                                               "saved": time.time()}, indent=2))
         except Exception:
             pass
@@ -338,7 +494,7 @@ class Guard:
         we have ever seen, so a paged-out engine still keeps its seat at the
         table. Never below the floor."""
         total = sum(self.highwater.values())
-        return max(RESERVE_FLOOR_GB, total + 2.0)
+        return min(max(RESERVE_FLOOR_GB, total + 2.0), RESERVE_CAP_GB)
 
     def budget_gb(self, forge):
         """What is left for everybody else, in total, across all leases."""
@@ -347,6 +503,62 @@ class Guard:
     def leased_gb(self):
         now = time.time()
         return sum(l["gb"] for l in self.leases.values() if l["expires"] > now)
+
+    # ── what the budget has actually been SPENT (2026-08-01) ──
+    #
+    # The box froze on 2026-08-01 with four Python processes holding 144GB of a
+    # 128GB machine, an hour after admission control had approved everything it
+    # was asked. It approved because the only number it ever added up was the
+    # DECLARED one: storyforge asked for 22GB (bin/forge-shot) and then loaded
+    # mflux, an in-process VL judge and a ComfyUI full of cached Wan weights on
+    # top of it. Worse, LEASE_LABELS maps comfyui onto storyforge's lease, so
+    # ComfyUI's 63GB counted as "asked politely" and sorted LAST for eviction —
+    # the biggest thing in the room was the best protected.
+    #
+    # So the budget is now charged for what is actually held, plus the part of
+    # each grant that has not been taken yet. Under-declaring buys nothing:
+    # allocate past your grant and the next caller is the one who waits.
+    def _owner(self, label, live):
+        """Which live lease, if any, this hog's memory belongs to."""
+        pats = LEASE_LABELS.get(label)
+        if not pats:
+            return None
+        cands = [lid for lid, l in live.items()
+                 if any(p in l["name"] for p in pats)]
+        # one hog, one owner — the biggest grant claims it, so the rest keep
+        # their unspent room and nobody's usage is counted twice
+        return max(cands, key=lambda lid: live[lid]["gb"], default=None)
+
+    def charge(self, hogs):
+        """(charged_gb, used_by_lease). Charged = every heavy non-forge program
+        resident right now + the unspent remainder of every outstanding grant."""
+        now = time.time()
+        live = {lid: l for lid, l in self.leases.items() if l["expires"] > now}
+        used = {lid: 0.0 for lid in live}
+        for h in hogs:
+            lid = self._owner(h["label"], live)
+            if lid:
+                used[lid] += h["mem_gb"]
+        resident = sum(h["mem_gb"] for h in hogs)
+        unspent = sum(max(0.0, l["gb"] - used[lid]) for lid, l in live.items())
+        return resident + unspent, used
+
+    def _learn_peak(self, live, used):
+        """Remember what each KIND of job really weighs, so the next one can ask
+        for the right number instead of a hopeful one. Served by /api/hint."""
+        for lid, l in live.items():
+            key = l["name"].split()[0] if l["name"].split() else l["name"]
+            got = used.get(lid, 0.0)
+            if got <= 0:
+                continue
+            if got > self.peaks.get(key, 0.0):
+                self.peaks[key] = round(got, 1)
+                self._save_state()
+            over = got - l["gb"]
+            if over >= OVERRUN_GB and time.time() - self._over_logged.get(lid, 0) > 60:
+                self._over_logged[lid] = time.time()
+                log(f"overrun {lid} {l['name']}: declared {l['gb']:.0f}GB, "
+                    f"holding {got:.0f}GB — charging the real number")
 
     # ── sampling ──
     def sample(self):
@@ -357,6 +569,9 @@ class Guard:
         forge = []
         for pid, port in sorted(forge_pids.items(), key=lambda kv: kv[1]):
             rss = by_pid[pid][1] if pid in by_pid else _rss_of(pid)
+            # ACE and gemma are MLX: most of their weights DO show in RSS, but
+            # not all of it. Size the reservation off whichever is larger.
+            rss = max(rss, _footprint_gb(pid))
             key = str(port)
             prev = max(self.highwater.get(key, 0.0), ENGINE_MIN_GB.get(key, 0.0))
             if rss > prev:
@@ -365,11 +580,16 @@ class Guard:
                 self.highwater[key] = prev
                 self._save_state()
             hw = prev
+            # Warmth is judged against the steady state, not the peak: a spike
+            # that ratcheted high-water up must not raise the bar out of reach.
+            _cap = WARM_REF_CAP_GB.get(key, 0.0)
+            ref = min(hw, _cap) if _cap > 0 else hw
             forge.append({"port": port, "pid": pid, "rss_gb": round(rss, 2),
                           "highwater_gb": round(hw, 2),
-                          # resident enough to answer fast? below half its own
-                          # high-water means macOS has paged the weights out
-                          "warm": bool(hw <= 0 or rss >= hw * 0.5)})
+                          "warm_ref_gb": round(ref, 2),
+                          # resident enough to answer fast? below half its warm
+                          # reference means macOS has paged the weights out
+                          "warm": bool(ref <= 0 or rss >= ref * 0.5)})
 
         # Which programs currently hold a granted lease, by label. Somebody who
         # asked politely is the LAST one we interfere with; the one who just
@@ -383,24 +603,31 @@ class Guard:
 
         hogs = []
         for pid, gb, cpu, cmd in procs:
-            if pid in forge_pids or gb < HOG_GB:
+            if pid in forge_pids:
                 continue
             label = None
             for name, pat in ADJUSTABLE:
                 if pat in cmd:
                     label = name
                     break
+            # mem_gb is the honest weight (RSS + wired GPU); rss_gb is kept
+            # alongside it because the two disagreeing by 3x is itself the
+            # symptom worth reading in the log.
+            mem = max(gb, _footprint_gb(pid)) if (gb >= HOG_GB or label) else gb
+            if mem < HOG_GB:
+                continue
             protected = bool(PROTECTED_PAT.search(cmd))
             known = bool(label)
-            hogs.append({"pid": pid, "rss_gb": round(gb, 2), "cpu": cpu,
+            hogs.append({"pid": pid, "rss_gb": round(gb, 2),
+                         "mem_gb": round(mem, 2), "cpu": cpu,
                          "label": label or "unregistered",
                          "asked": label in asked,
-                         "adjustable": (known or gb >= BIG_UNLEASED_GB)
+                         "adjustable": (known or mem >= BIG_UNLEASED_GB)
                                        and not protected,
                          "cmd": cmd[:120]})
         # biggest first, but anything that never asked goes ahead of anything
         # that did, whatever the sizes
-        hogs.sort(key=lambda h: (h["asked"], -h["rss_gb"]))
+        hogs.sort(key=lambda h: (h["asked"], -h["mem_gb"]))
 
         swap = _swap_gb()
         srate = _swap_rate_mb_min()
@@ -431,22 +658,46 @@ class Guard:
                                    else f"available {avail:.1f}GB")
 
         now = time.time()
+        with self.lock:
+            live = {lid: l for lid, l in self.leases.items()
+                    if l["expires"] > now}
+            charged, used = self.charge(hogs)
+            self._learn_peak(live, used)
+            # A grant is a promise of room. A job sitting INSIDE the room it was
+            # given is not the one that has to adjust; a job past it is.
+            for h in hogs:
+                _lid = self._owner(h["label"], live)
+                h["within_grant"] = bool(_lid) and used.get(_lid, 0.0) <= live[_lid]["gb"]
         snap = {
             "total_gb": round(TOTAL_GB, 1),
             "reserve_gb": round(self.reserve_gb(forge), 1),
             "budget_gb": round(self.budget_gb(forge), 1),
             "leased_gb": round(self.leased_gb(), 1),
+            # what the budget is actually spending: everything heavy that is
+            # resident, plus grants not yet drawn down. This, not leased_gb, is
+            # what admission control subtracts.
+            "charged_gb": round(charged, 1),
+            "resident_nonforge_gb": round(sum(h["mem_gb"] for h in hogs), 1),
             "available_gb": round(avail, 1),
             "free_gb": round(free, 1),
             "swap_gb": round(swap, 1),
             "swap_rate_mb_min": round(srate, 1),
             "level": level, "why": why,
             "forge": forge,
-            "forge_ok": all(f["warm"] for f in forge) and len(forge) >= 2,
+            # Only the MODEL engines (ACE :8001, gemma :9420) can be "cold" —
+            # the HTTP frontends (:8767 forge, :8770 app) are tiny and their
+            # RSS vs high-water says nothing about weights. Gating on them
+            # made a freshly restarted forge_server report forge_ok=false
+            # (2026-07-29: routed customer jobs to the paged-out backup).
+            "forge_ok": (all(f["warm"] for f in forge
+                             if f["port"] in WARM_GATE_PORTS)
+                         and any(f["port"] in WARM_GATE_PORTS for f in forge)),
             "hogs": hogs[:12],
             "paused": [{"pid": p, **v} for p, v in self.paused.items()],
-            "leases": [{"id": k, **v} for k, v in self.leases.items()
+            "leases": [{"id": k, **v, "used_gb": round(used.get(k, 0.0), 1)}
+                       for k, v in self.leases.items()
                        if v["expires"] > now],
+            "peaks": dict(self.peaks),
             "ts": now,
         }
         with self.lock:
@@ -457,13 +708,30 @@ class Guard:
     def try_reserve(self, name, gb, ttl=LEASE_TTL):
         snap = self.last or self.sample()
         with self.lock:
-            free_budget = self.budget_gb(snap["forge"]) - self.leased_gb()
+            # Charged, not leased: a program that took more than it declared has
+            # already spent the room, whether or not it filed the paperwork.
+            #
+            # But charged_gb comes off the last SAMPLE, which can be a whole tick
+            # old, and a grant issued inside that tick is invisible to it. Caught
+            # in test 2026-08-01: a 46GB animate lease and a 38GB still lease were
+            # both granted a second apart against a 52GB budget — the two halves
+            # of one shot, stacked, which is the exact thing this fix exists to
+            # stop. So take the worse of the sampled reality and the live ledger:
+            # every grant already issued, plus whatever resident memory the sample
+            # could not attribute to any lease.
+            sampled = snap.get("charged_gb", 0.0)
+            attributed = sum(l.get("used_gb", 0.0) for l in snap.get("leases", []))
+            unattributed = max(0.0, snap.get("resident_nonforge_gb", 0.0) - attributed)
+            charged = max(sampled, self.leased_gb() + unattributed)
+            free_budget = self.budget_gb(snap["forge"]) - charged
             if snap["level"] == "critical":
                 return None, f"machine critical ({snap['why']})", 30
             if gb > free_budget:
                 return None, (f"{gb:.0f}GB would exceed the non-forge budget "
                               f"({free_budget:.0f}GB free of "
-                              f"{snap['budget_gb']:.0f}GB)"), 30
+                              f"{snap['budget_gb']:.0f}GB; "
+                              f"{snap.get('resident_nonforge_gb', 0):.0f}GB "
+                              f"already resident)"), 30
             if snap["level"] == "tight" and gb > free_budget * 0.6:
                 return None, f"machine tight ({snap['why']}), large ask held", 30
             self.seq += 1
@@ -472,8 +740,8 @@ class Guard:
                                 "granted": time.time(),
                                 "expires": time.time() + ttl}
             log(f"grant {lid} {name} {gb:.0f}GB "
-                f"(budget {snap['budget_gb']:.0f}GB, leased "
-                f"{self.leased_gb():.0f}GB, reserve {snap['reserve_gb']:.0f}GB)")
+                f"(budget {snap['budget_gb']:.0f}GB, charged {charged:.0f}GB, "
+                f"reserve {snap['reserve_gb']:.0f}GB)")
             return lid, "granted", 0
 
     def release(self, lid):
@@ -549,6 +817,14 @@ class Guard:
         for h in hogs:
             if not h["adjustable"] or h["pid"] in self.paused:
                 continue
+            if h.get("asked"):
+                # A lease the evictor ignores is decorative — written 2026-07-28,
+                # paid for AGAIN 2026-07-31: storyforge held a granted 22GB lease
+                # and was evict-idled 96 seconds later (its CPU reads ~0 while it
+                # waits on its mflux subprocess). A program inside admission
+                # control is waiting, not wasting. The emergency paths (swap
+                # rate, critical) still outrank any lease — customers still win.
+                continue
             if h["label"] == "comfyui" and self._comfy_busy():
                 continue
             if h["cpu"] >= 2.0 and h["label"] == "comfyui":
@@ -590,14 +866,27 @@ class Guard:
             # with the finished render sitting unjudged on disk — the exact
             # failure forge-shot's own comments describe from 7/27. Let a load
             # finish; a loaded process can at least be paused usefully later.
-            if self._growing(h["pid"], h["rss_gb"]):
+            if self._growing(h["pid"], h["mem_gb"]):
+                continue
+            # HONOUR THE GRANT (2026-08-01). Rule 20 says "a lease buys nothing
+            # unless the enforcement path honours it" and records film_qc being
+            # SIGSTOPped while holding a granted 26GB. _evict_idle was fixed to
+            # skip `asked`; this path never was, and it cost two more: forge-shot
+            # SIGSTOPped at 19:12:47 and 19:42:44 tonight while holding a valid
+            # lease, mid-shot. Skipping leaseholders outright would be the
+            # opposite mistake — during a render the leaseholder is usually the
+            # ONLY hog, so the guard would have no lever at all. The line is the
+            # grant itself: inside your room you are protected, past it you are
+            # the one who over-allocated and the first to adjust.
+            if h.get("asked") and h.get("within_grant"):
                 continue
             if h["adjustable"] and h["pid"] not in self.paused:
                 if self._signal(h["pid"], signal.SIGSTOP,
-                                f"pause {h['label']} ({h['rss_gb']:.0f}GB)", why):
+                                f"pause {h['label']} ({h['mem_gb']:.0f}GB)", why):
                     self.paused[h["pid"]] = {"since": time.time(),
                                              "label": h["label"],
-                                             "rss_gb": h["rss_gb"]}
+                                             "rss_gb": h["rss_gb"],
+                                             "mem_gb": h["mem_gb"]}
                     return True
         return False
 
@@ -692,6 +981,22 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         if u.path in ("/api/state", "/", "/health"):
             return self._json(GUARD.sample())
+        if u.path == "/api/hint":
+            # "How big does this kind of job actually turn out to be?" — so a
+            # caller can ask for the truth instead of the number somebody typed
+            # into a script months ago.
+            name = (q.get("name") or [""])[0]
+            key = name.split()[0] if name.split() else name
+            snap = GUARD.last or GUARD.sample()
+            # A hint must never be big enough to make a job permanently
+            # unschedulable. Peaks only ever grow, so one bad sample (a stale
+            # ComfyUI cache attributed to a render) could otherwise ratchet a
+            # phase past the whole budget and hold it there forever.
+            ceiling = snap.get("budget_gb", 0) * 0.9
+            peak = min(GUARD.peaks.get(key, 0.0), ceiling) if ceiling else 0.0
+            return self._json({"name": key, "peak_gb": round(peak, 1),
+                               "measured_peak_gb": GUARD.peaks.get(key, 0.0),
+                               "peaks": GUARD.peaks})
         if u.path == "/api/wait":
             name = (q.get("name") or ["anon"])[0]
             gb = float((q.get("gb") or ["0"])[0])

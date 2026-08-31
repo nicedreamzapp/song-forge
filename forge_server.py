@@ -57,6 +57,15 @@ ACE_CACHE = ROOT / "engines" / "ACE-Step-1.5" / ".cache" / "acestep" / "tmp" / "
 
 # Voice-swap pipeline configuration.
 SVC_DIR    = ROOT / "engines" / "seed-vc"
+# Voice-conversion quality. seed-vc's own default is 30; we ran 25 until
+# 2026-08-11, which is what made swapped vocals sound digital. Higher =
+# cleaner and slower (the diffusion pass is only part of the run time).
+SVC_DIFFUSION_STEPS = 50
+# Roots-reggae LoRA trained on Matt's collection (2026-07-30, v2 epoch 200 —
+# his ear picked it). Loaded onto ACE only while a reggae job renders.
+REGGAE_LORA_ADAPTER = (ROOT / "engines" / "ACE-Step-1.5" / "lora_data" / "loras"
+                       / "roots_reggae_v2" / "checkpoints"
+                       / "epoch_200_loss_0.3107" / "adapter")
 SVC_PY     = SVC_DIR / ".venv" / "bin" / "python"
 DEMUCS_BIN = Path.home() / "Library" / "Python" / "3.9" / "bin" / "demucs"
 SWAP_WORK  = ROOT / "voice_swap_work"
@@ -76,6 +85,14 @@ VOICE_DIRS = [
 ]
 (ROOT / "voice_refs").mkdir(exist_ok=True)
 
+# 2026-08-17 — the NOT walls are gone from the reggae and soul blocks too.
+# The 2026-07-29 drill work removed them from the rap blocks (ACE's text encoder
+# can't process negation, arXiv 2505.18434) but reggae/soul kept theirs, so every
+# reggae caption still carried "NOT a thin clear-toned white pop tenor" — the
+# model read that as a description. Measured, same song / seed / planner:
+#     caption WITH the NOT phrases   28.9% repeat
+#     caption WITHOUT them            5.1% repeat
+# Say what you want, never what you don't. This applies to every caption line.
 # Genres whose vocal default in ACE-Step otherwise drifts toward a thin
 # white-pop tenor. When the user picks any of these we auto-append timbre
 # cues so the lead reads as Black/African American instead of being silently
@@ -85,7 +102,7 @@ BLACK_ROOTED_GENRE_KEYS = (
     "doo-wop", "doo wop", "doowop", "motown",
     "blues", "delta blues", "chicago blues", "jump blues",
     "funk", "p-funk", "p funk",
-    "hip-hop", "hip hop", "rap", "trap",
+    "hip-hop", "hip hop", "rap", "trap", "drill", "phonk",
     "reggae", "dancehall", "ska", "rocksteady", "dub",
     "afrobeat", "afro-beat", "afrobeats", "highlife",
     "african", "west african", "east african", "swahili",
@@ -94,8 +111,7 @@ BLACK_ROOTED_GENRE_KEYS = (
 BLACK_VOCAL_REINFORCEMENT = (
     "Black African American male lead vocalist with deep rich gospel-rooted "
     "timbre, natural blues-tinged melisma and grain (Sonny Til, Clyde McPhatter, "
-    "Sam Cooke, Otis Redding voice type), NOT a thin clear-toned white pop "
-    "tenor, NOT country, NOT country-gospel, NOT Nashville twang, NOT CCM, "
+    "Sam Cooke, Otis Redding voice type), warm chesty resonance, "
     "soulful church-trained delivery"
 )
 
@@ -107,15 +123,37 @@ HIPHOP_GENRE_KEYS = (
     "hip-hop", "hip hop", "rap", "trap", "drill", "boom-bap", "boom bap",
     "emcee", " mc ", "rapper",
 )
+# 2026-07-29 drill investigation: two lessons baked in below.
+# (1) NO/NOT negation walls are GONE from the rap blocks — ACE's text encoder
+#     can't process negation (arXiv 2505.18434); "NO electric guitar, NOT
+#     country" conditions the model ON guitars and country. Say what you want,
+#     never what you don't.
+# (2) Drill/trap is NOT boom-bap — the KRS-One/vinyl-crackle recipe actively
+#     fights the modern sound (sliding 808s, rapid hats, dark piano). Modern
+#     rap substyles get their own block.
+MODERN_RAP_KEYS = (
+    "drill", "uk drill", "ny drill", "chicago drill", "brooklyn drill",
+    "trap", "phonk", "gangsta", "808", "mumble rap", "modern rap",
+    "autotune rap",
+)
+MODERN_RAP_REINFORCEMENT = (
+    "Black male MC, deep gritty aggressive rap delivery, modern drill and trap "
+    "production, sliding distorted 808 bass glides, crisp rapid hi-hat rolls "
+    "and triplets, dark minor-key piano loop, hard punchy snare, sparse icy "
+    "arrangement, street tension, hard contemporary rap authenticity"
+)
+MODERN_RAP_REINFORCEMENT_F = (
+    "Black female MC, commanding gritty aggressive woman's rap delivery, modern "
+    "drill and trap production, sliding distorted 808 bass glides, crisp rapid "
+    "hi-hat rolls and triplets, dark minor-key piano loop, hard punchy snare, "
+    "sparse icy arrangement, street tension, hard contemporary rap authenticity"
+)
 HIPHOP_VOCAL_REINFORCEMENT = (
     "Black male MC, African American emcee, deep Black male baritone rap voice, "
     "PURE hip-hop in the Public Enemy / KRS-One / Black Thought / Mos Def / "
     "Talib Kweli / Killer Mike / Joey Bada$$ / Royce 5'9 / Immortal Technique "
     "lineage, gritty Black male rap delivery, scratched chorus samples, "
-    "vinyl crackle warmth, "
-    "NO electric guitar, NO rock drums, NO nu-metal, NO rap-rock fusion, NO punk, "
-    "NOT white, NOT pop, NOT indie, NOT alt-rock, NOT rap-metal, "
-    "raw Black conscious hip-hop authenticity"
+    "vinyl crackle warmth, raw Black conscious hip-hop authenticity"
 )
 
 # Roots reggae / dancehall / dub / ska is rhythmic-chant Rasta vocal style, NOT
@@ -132,10 +170,8 @@ REGGAE_VOCAL_REINFORCEMENT = (
     "Black Jamaican Rastafarian male lead vocalist with chesty resonant chant-toned "
     "delivery in the Burning Spear / Bob Marley / Peter Tosh / Sizzla / Capleton / "
     "Buju Banton / Jacob Miller lineage, deep roots-reggae timbre, patois inflection, "
-    "earthy organic Nyabinghi-rooted voice, "
-    "NOT gospel melisma, NOT soul curls, NOT R&B runs, "
-    "NOT a thin clear-toned white pop tenor, NOT pop-reggae, NOT UB40 style, "
-    "NOT light Caribbean lilt — heavy chesty Rasta authenticity"
+    "earthy organic Nyabinghi-rooted voice, spoken-sung chant phrasing, "
+    "heavy chesty Rasta authenticity"
 )
 
 # Female variants (2026-07-09): the male-only reinforcements were overriding
@@ -146,23 +182,19 @@ HIPHOP_VOCAL_REINFORCEMENT_F = (
     "PURE hip-hop in the Lauryn Hill / Queen Latifah / MC Lyte / Rapsody / "
     "Missy Elliott / Bahamadia / Little Simz lineage, confident gritty Black female "
     "rap delivery, scratched chorus samples, vinyl crackle warmth, "
-    "NO electric guitar, NO rock drums, NO nu-metal, NO rap-rock fusion, NO punk, "
-    "NOT white, NOT pop, NOT indie, NOT alt-rock, NOT rap-metal, NOT a male voice, "
     "raw Black conscious hip-hop authenticity"
 )
 REGGAE_VOCAL_REINFORCEMENT_F = (
     "Black Jamaican female lead vocalist with warm resonant chant-toned delivery "
     "in the Marcia Griffiths / Judy Mowatt / Rita Marley / Sister Nancy lineage, "
     "deep roots-reggae timbre, patois inflection, earthy organic Nyabinghi-rooted "
-    "voice, NOT gospel melisma, NOT soul curls, NOT R&B runs, "
-    "NOT a thin white pop voice, NOT pop-reggae, NOT a male voice — "
+    "voice, spoken-sung chant phrasing, woman's voice, "
     "heavy roots authenticity"
 )
 BLACK_VOCAL_REINFORCEMENT_F = (
     "Black African American female lead vocalist with rich gospel-rooted timbre, "
     "natural blues-tinged melisma and grain (Mahalia Jackson, Aretha Franklin, "
-    "Etta James voice type), NOT a thin white pop voice, NOT a male voice, "
-    "NOT country, NOT country-gospel, NOT Nashville twang, NOT CCM, "
+    "Etta James voice type), rich chesty resonance, woman's voice, "
     "soulful church-trained delivery"
 )
 
@@ -211,8 +243,12 @@ BLACK_VOICE_REGISTRY = [
         # 2026-07-25: Matt picked Vaughn Benjamin (Midnite) as THE reggae voice
         # after rejecting Spear/Hill/Toots — pitch center 245Hz, narrow chant
         # band, dark. Ref cut from "Livity" isolated vocals. Spear stays on disk.
-        "voice_name": "Vaughn Benjamin",
-        "voice_path": ROOT / "voice_refs" / "vaughn_benjamin.wav",
+        "voice_name": "Burning Spear",
+        "voice_path": ROOT / "voice_refs" / "burning_spear.wav",
+        # Matt 2026-07-30: swapped reggae leads came out "a little high-pitched"
+        # — auto-f0 tracks the ACE tenor. Drop 2 semitones toward Vaughn's
+        # dark chant register (A/B'd -2 vs -4; -2 won).
+        "semi_tone_shift": 0,
     },
     # Delta blues lineage — RJ's sharp haunted Mississippi voice. Listed before
     # Sam Cooke so Delta/country-blues phrases beat the broader Sam Cooke entry.
@@ -297,6 +333,17 @@ GENRE_GATE = [
 ]
 CLAP_PY = ROOT / "engines" / "ACE-Step-1.5" / ".venv" / "bin" / "python"
 CLAP_SCRIPT = ROOT / "clap_genre_check.py"
+# ADVISORY MODE (Matt 2026-08-11). The gate still runs and still logs its
+# verdict, but it no longer throws away a finished render. Measured that
+# night: a full-mix reggae/hip-hop render scored 51.8% COUNTRY / 16.5%
+# reggae, and on six real reference recordings (Black Thought, Burning
+# Spear, Toots Hibbert, Sam Cooke, Robert Johnson, Mahalia Jackson) the
+# classifier got ONE right — it called Burning Spear gospel at 0.75.
+# Sentence-template prompting did not help (still 1/6). While it is that
+# wrong, enforcing it costs up to 3x the GPU per song AND sometimes ships
+# the worst of three rolls. Flip back to True only after a replacement
+# classifier passes a labelled test set.
+GENRE_GATE_ENFORCE = False
 
 
 def _requested_genre(style_l: str):
@@ -421,6 +468,7 @@ def _pick_black_voice_for_style(style: str) -> Optional[Dict[str, str]]:
         "voice_name": chosen["voice_name"],
         "voice_path": str(chosen["voice_path"]),
         "gender": chosen["gender"],
+        "semi_tone_shift": int(chosen.get("semi_tone_shift", 0)),
     }
 
 
@@ -467,7 +515,12 @@ LYRIC_VERBS = [
 
 
 LM_URL    = "http://127.0.0.1:9420/v1/chat/completions"
-LM_MODEL  = "divinetribe/gemma-4-31b-it-abliterated-4bit-mlx"  # M5-local mlx_lm.server (~29s/song incl. reasoning)
+# 2026-08-17: SuperGemma-4-12B (6.7 GB) replaces Gemma-4-31B (16 GB). Matt
+# A/B'd them sung, same brief/caption/seed/planner, and preferred the 12B.
+# The size is the point: at 6.7 GB the MINI can hold ACE + the 1.7B planner
+# + the lyric model in 64 GB, so both boxes finally run the same config.
+# Gemma-31B is still on disk if this ever needs reverting.
+LM_MODEL  = "DreamFoundries/SuperGemma-4-12b-abliterated-4bit"
 LM_MODELS_URL = "http://127.0.0.1:9420/v1/models"
 
 
@@ -520,7 +573,11 @@ BRIEF_SYSTEM = (
     "TALKING TO: <one line>\n"
     "WHAT HAPPENED: <2-3 sentences, concrete, small, true to the genre>\n"
     "THE ONE LINE: <the plain-spoken hook they would sing in the shower — words a "
-    "person actually says, given a twist>"
+    "person actually says, given a twist>\n"
+    "SPECIFICS: <3-6 real, concrete details of the subject, comma-separated — real "
+    "place names, streets, foods, weather, jobs, names. If the subject is a place, "
+    "real spots in it (a song about Tennessee names Memphis, Beale Street, the "
+    "Smokies); never generic scenery>"
 )
 
 
@@ -572,7 +629,10 @@ SYSTEM_PROMPT = (
     "it straight with a twist in the last line.\n"
     "9. FORBIDDEN WORDS unless quoting someone: soul, spirit, freedom, rise up, neon, "
     "shadows, echoes, whispers, fire as a metaphor, 'feel the rhythm/music/beat'.\n"
-    "10. No line that could sit in a greeting card or a tourism ad."
+    "10. No line that could sit in a greeting card or a tourism ad.\n"
+    "11. Be SPECIFIC about the subject: real place names, real particulars. "
+    "'Beale Street' beats 'the city'; 'your mama's porch' beats 'home'. If the song "
+    "is about somewhere or someone, name it — generic is the enemy."
 )
 
 
@@ -661,9 +721,19 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
         if duration and duration <= 15:
             structure = (
                 "Structure:\n"
-                "[chorus] 2 punchy lines only — a jingle hook, nothing else\n"
+                "[chorus] 2 short lines, 6 WORDS MAX PER LINE — a jingle hook, nothing else\n"
             )
             length_line = "Write a 10-second JINGLE — one irresistible hook, sung from the first beat.\n"
+            # Matt 2026-08-11: "Divine Tribe by melanie on etsy" came back as
+            # two 12-word lines about a landlord. 24 words inside 10 seconds is
+            # far past what ACE can enunciate, so the whole jingle was mush and
+            # none of it was the brand he typed. Cap the budget, name the thing.
+            length_line += (
+                "HARD LIMIT: 12 words TOTAL across both lines. At 10 seconds, "
+                "more words than that are sung too fast to understand. Leave space.\n"
+                "If the THEME names a brand, shop, product or person, sing that "
+                "name VERBATIM in the hook. Never invent an unrelated storyline.\n"
+            )
         elif duration and duration <= 45:
             structure = (
                 "Structure:\n"
@@ -704,7 +774,7 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
                 structure = (
                     "Structure:\n"
                     "[chorus] 4 short lines — the sung hook; the song OPENS on this\n"
-                    "[verse]  8 rapped bars\n"
+                    "[verse]  4 rapped bars\n"
                 )
             elif duration <= 90:
                 structure = (
@@ -746,7 +816,26 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
                 "- Build the chorus around THE ONE LINE nearly word for word.\n"
                 "- Verse 2 is later in the story than verse 1 — something moved.\n"
                 "- Slant rhyme beats forced rhyme; never sacrifice the sentence to the rhyme.\n"
+                "- Work at least three of the SPECIFICS into the verses BY NAME — real "
+                "details are what make a song feel true.\n"
+                "- If the song is about a named subject (a place, a person, a thing), "
+                "the chorus says that name outright.\n"
+                "- The chorus's FIRST line is plain words a stranger understands "
+                "instantly — no decoding required; save the clever stuff for verses.\n"
             )
+        # Matt 2026-08-11: "Divine Tribe by melanie on etsy" at 30 seconds came
+        # back as eight rapped bars about quitting a desk job and packing sage
+        # at 2am. The shop name was never sung once. A song someone orders for
+        # their business has to SAY the business, with room to be heard.
+        length_line += (
+            "NAME IT: if the STYLE or THEME names a business, shop, product, "
+            "person or handle, the chorus sings that name VERBATIM, spelled "
+            "exactly as the customer wrote it. Never swap it for a storyline "
+            "of your own invention.\n"
+            "LEAVE SPACE: every line has to be singable at a relaxed pace. "
+            "Fewer words with room around them beat clever lines that have to "
+            "be rushed to fit.\n"
+        )
         user_prompt = (
             length_line
             + f"STYLE: {style_part}.{theme_part}\n"
@@ -826,14 +915,70 @@ def _llm_lyrics_once(style: str = "", theme: str = "", banned: Optional[list] = 
         slipped = [b for b in all_banned
                    if re.search(r"\b" + re.escape(b) + r"\b", msg, re.IGNORECASE)]
         if slipped:
-            _swaps = ["smoke", "static", "shadow", "echo", "ember", "gravel"]
-            _rnd = _rnd_mod.Random(len(msg))
-            for b in slipped:
-                msg = re.sub(r"\b" + re.escape(b) + r"\b", _rnd.choice(_swaps), msg, flags=re.IGNORECASE)
-            print(f"[llm_lyrics] swapped banned phrase(s) {slipped!r} (word-boundary) instead of rejecting", flush=True)
+            fixed = _repair_banned_lines(msg, slipped)
+            if fixed:
+                msg = fixed
+                print(f"[llm_lyrics] LM-rewrote line(s) containing banned phrase(s) {slipped!r}", flush=True)
+            else:
+                # Last-ditch word swap so the song still ships. Plain nouns only —
+                # the old list (shadow/echo/ember) was itself rule-9 cliché junk.
+                _swaps = ["gravel", "rain", "dust", "wind", "smoke", "static"]
+                _rnd = _rnd_mod.Random(len(msg))
+                for b in slipped:
+                    msg = re.sub(r"\b" + re.escape(b) + r"\b", _rnd.choice(_swaps), msg, flags=re.IGNORECASE)
+                print(f"[llm_lyrics] swapped banned phrase(s) {slipped!r} (word-boundary) instead of rejecting", flush=True)
         return msg
     except Exception as e:
         print(f"[llm_lyrics] {e}", flush=True)
+        return None
+
+
+def _repair_banned_lines(msg: str, slipped: list) -> Optional[str]:
+    """Rewrite ONLY the lines containing banned phrases, keeping rhyme and
+    meaning. 2026-08-08: the blind word-swap turned the Tennessee hook
+    'I got the city lights now' into 'I got the ember now' — nonsense the
+    customer heard three times per play. One extra LM call (~5-20s, and only
+    when a phrase actually slipped) buys a line that still makes sense.
+    Returns the repaired sheet, or None so the caller falls back to the swap."""
+    try:
+        bad_lines = [ln for ln in msg.splitlines() if any(
+            re.search(r"\b" + re.escape(b) + r"\b", ln, re.IGNORECASE) for b in slipped)]
+        if not bad_lines:
+            return None
+        prompt = (
+            "These lyrics are FINAL except the lines listed below, which contain "
+            "forbidden phrases. Rewrite ONLY those lines — same meaning, same length, "
+            "keep the rhyme with their neighboring lines, plain words, no forbidden "
+            "phrase. A repeated chorus line must be rewritten the same way every time "
+            "it appears. Output the COMPLETE lyric sheet with every other line copied "
+            "verbatim, [verse]/[chorus] tags included, no commentary.\n\n"
+            "FORBIDDEN PHRASES: " + ", ".join(slipped) + "\n"
+            "LINES TO REWRITE:\n" + "\n".join(f"  {ln.strip()}" for ln in bad_lines) +
+            "\n\nLYRICS:\n" + msg
+        )
+        payload = {
+            "model": LM_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.7, "top_p": 0.9, "max_tokens": 1400,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        req = UrlRequest(LM_URL, data=json.dumps(payload).encode("utf-8"),
+                         headers={"Content-Type": "application/json"})
+        # 240s not 120: when ACE or a video render owns the GPU, Gemma slows
+        # 5-10x, and abandoning early leaves a ghost job gumming up mlx_lm.server.
+        with urlopen(req, timeout=240) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        fixed = (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        if not fixed or "[chorus]" not in fixed.lower():
+            return None
+        if any(re.search(r"\b" + re.escape(b) + r"\b", fixed, re.IGNORECASE) for b in slipped):
+            return None
+        n0, n1 = msg.count("\n"), fixed.count("\n")
+        if abs(n1 - n0) > max(4, n0 // 5):  # sheet got rewritten wholesale — reject
+            return None
+        return fixed
+    except Exception as e:
+        print(f"[repair_banned] {e}", flush=True)
         return None
 
 
@@ -864,20 +1009,37 @@ def _seed_lyrics() -> str:
     )
 
 
+def _default_bpm(style_l: str, bpm: Optional[float] = None) -> int:
+    """Caller's bpm wins; otherwise pick a genre-sane default. The old flat 88
+    default put drill/trap requests at half their native tempo — a big part of
+    why 'drill' renders drifted country (2026-07-29)."""
+    if bpm and 40 <= bpm <= 220:
+        return int(bpm)
+    if any(k in style_l for k in MODERN_RAP_KEYS):
+        return 142
+    return 88
+
+
 def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float] = None) -> str:
     """Build the music-style prompt for ACE-Step. The user's `style` text is
     authoritative — we only append a default vocal hint if they haven't already
     specified one (otherwise hard-coding 'expressive male vocal' silently
     overrides duet/falsetto/female/choir requests)."""
     style = (style or "uplifting reggae groove with male vocals, warm bass, conga drums").strip()
-    bpm_val = int(bpm) if bpm and 40 <= bpm <= 220 else 88
     style_l = style.lower()
+    bpm_val = _default_bpm(style_l, bpm)
     has_vocal_hint = any(k in style_l for k in (
         "vocal", "voice", "singer", "duet", "choir", "harmony", "harmonies",
         "falsetto", "baritone", "tenor", "soprano", "alto", "rap", "spoken",
         "instrumental", "no vocal",
     ))
-    parts = [style, f"{bpm_val} bpm"]
+    # Only append a tempo when the style text doesn't already name one.
+    # Appending unconditionally sent ACE captions with TWO tempos in them
+    # ("74 bpm ... 88 bpm"), where the second was just our default talking
+    # over the user (2026-08-15).
+    parts = [style]
+    if not re.search(r"\d+\s*bpm", style_l):
+        parts.append(f"{bpm_val} bpm")
     # Only append "clean mix" if the user wants polished production. When the
     # style mentions raw/lofi/tape/field-recording/cassette/bootleg/demo, the
     # hardcoded "clean mix" was fighting the intended aesthetic — Matt called
@@ -897,7 +1059,7 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
         parts.insert(0, "female rapper, woman lead vocalist, solo female voice"
                         if any(k in style_l for k in HIPHOP_GENRE_KEYS)
                         else "woman lead vocalist, solo female voice")
-        parts.append("expressive female vocal, female lead singer, a woman's voice, NOT a male voice, NO male lead")
+        parts.append("expressive female vocal, female lead singer, a woman's voice")
     elif req_gender == "duet":
         parts.append("male and female duet vocals")
     elif not has_vocal_hint:
@@ -908,12 +1070,12 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
     # instrumental requests.
     if "instrumental" not in style_l and "no vocal" not in style_l:
         parts.insert(1, "vocals start immediately")
-        parts.append("no instrumental intro, singing from the very first bar")
+        parts.append("singing from the very first bar")
         # "vocals start immediately" alone made ACE fill the intro with
         # yeah-yeah ad-libs when the sheet opened on a verse (Matt's 3-min
         # drill song, 2026-07-29) — demand real words, not vocalizations.
         parts.append("the first words sung are the actual opening lyrics, "
-                     "no yeah-yeah ad-lib intro, no vocalization filler")
+                     "the very first sound is a sung word")
 
     # ACE-Step's vocal default skews toward white pop. For Black-rooted
     # genres, append explicit timbre + lineage cues UNLESS the user already
@@ -937,7 +1099,9 @@ def _seed_prompt(style: Optional[str], idea: Optional[str], bpm: Optional[float]
             # reinforcement makes reggae drift toward soul curls + white tenor
             # (Matt called the first 'Mountain in the Mist' too white 2026-05-13).
             fem = req_gender == "female"
-            if any(k in style_l for k in HIPHOP_GENRE_KEYS):
+            if any(k in style_l for k in MODERN_RAP_KEYS):
+                parts.append(MODERN_RAP_REINFORCEMENT_F if fem else MODERN_RAP_REINFORCEMENT)
+            elif any(k in style_l for k in HIPHOP_GENRE_KEYS):
                 parts.append(HIPHOP_VOCAL_REINFORCEMENT_F if fem else HIPHOP_VOCAL_REINFORCEMENT)
             elif any(k in style_l for k in REGGAE_GENRE_KEYS):
                 parts.append(REGGAE_VOCAL_REINFORCEMENT_F if fem else REGGAE_VOCAL_REINFORCEMENT)
@@ -1130,6 +1294,23 @@ def _pull_vps_state_loop() -> None:
             vps_index = {s["id"]: s for s in m.get("songs", [])}
             with JOBS_LOCK:
                 local_ids = list(JOBS.keys())
+            # Mass-deletion circuit breaker (2026-08-17). An empty-but-valid
+            # manifest — what a 504ing VPS serves — makes every published song
+            # look deleted, and this loop hard-deleted 48 of Matt's songs in one
+            # pass. One song disappearing is plausible; all of them is a broken
+            # manifest. When too many go missing at once, trust the local copies.
+            with JOBS_LOCK:
+                _published = [j for j in local_ids
+                              if (JOBS.get(j) or {}).get("published")]
+            _gone = [j for j in _published if j not in vps_index]
+            MASS_DELETE_LIMIT = 5
+            if len(_gone) > MASS_DELETE_LIMIT:
+                print(f"[sync] REFUSING to delete: manifest says {len(_gone)} of "
+                      f"{len(_published)} published songs are gone. That is a bad "
+                      f"manifest, not a library wipe. Skipping deletions.",
+                      flush=True)
+                time.sleep(60)
+                continue
             # Mirror ratings down + detect VPS-side deletions.
             for jid in local_ids:
                 with JOBS_LOCK:
@@ -1607,26 +1788,38 @@ def _remove_from_music_library(safe_title: str) -> None:
     'AI Song Forge' so a same-named non-Forge track can't be hit by
     accident. Without this, deleting a song's file from disk leaves a
     broken-pointer row in Music.app (and iCloud won't propagate the
-    delete to iPhone). Best-effort; silent no-op if Music isn't running."""
+    delete to iPhone). Best-effort; silent no-op if Music isn't running.
+
+    Runs the osascript in a background thread — Music.app can take 8-20s+ to
+    answer a whole-library "whose" query while syncing, and this sits in the
+    customer-facing DELETE path (2026-07-29: canary/customers timed out on
+    /api/delete_song because of it). AppleScript also LAUNCHES Music if it
+    isn't running, so guard with pgrep to keep the docstring honest."""
     if not safe_title:
         return
-    try:
-        script = (
-            'on run argv\n'
-            '  tell application "Music"\n'
-            '    set victims to (every track of library playlist 1 whose name is (item 1 of argv) and genre is "AI Song Forge")\n'
-            '    repeat with t in victims\n'
-            '      delete t\n'
-            '    end repeat\n'
-            '  end tell\n'
-            'end run'
-        )
-        subprocess.run(
-            ["osascript", "-e", script, "--", safe_title],
-            capture_output=True, text=True, timeout=20,
-        )
-    except Exception as e:
-        print(f"[music delete] {e}", flush=True)
+    if subprocess.run(["pgrep", "-x", "Music"], capture_output=True).returncode != 0:
+        return
+
+    def _yank():
+        try:
+            script = (
+                'on run argv\n'
+                '  tell application "Music"\n'
+                '    set victims to (every track of library playlist 1 whose name is (item 1 of argv) and genre is "AI Song Forge")\n'
+                '    repeat with t in victims\n'
+                '      delete t\n'
+                '    end repeat\n'
+                '  end tell\n'
+                'end run'
+            )
+            subprocess.run(
+                ["osascript", "-e", script, "--", safe_title],
+                capture_output=True, text=True, timeout=60,
+            )
+        except Exception as e:
+            print(f"[music delete] {e}", flush=True)
+
+    threading.Thread(target=_yank, daemon=True).start()
 
 
 def _drop_into_music_auto_add(job: Dict[str, Any]) -> None:
@@ -1741,6 +1934,7 @@ def _spawn_auto_voice_assist(src_job: Dict[str, Any], voice: Dict[str, str]) -> 
         "src_jid": src_jid,
         "voice_name": voice["voice_name"],
         "voice_path": voice["voice_path"],
+        "semi_tone_shift": int(voice.get("semi_tone_shift", 0) or 0),
         "group_effect": False,
         "created_at": time.time(),
         "progress": 0.0,
@@ -1868,7 +2062,8 @@ def _run_swap_impl(jid: str, job: Dict[str, Any]) -> None:
              "--output", str(work),
              "--f0-condition", "true",
              "--auto-f0-adjust", "true",
-             "--diffusion-steps", "25"],
+             "--semi-tone-shift", str(int(job.get("semi_tone_shift") or 0)),
+             "--diffusion-steps", str(SVC_DIFFUSION_STEPS)],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1, cwd=str(SVC_DIR),
         )
@@ -1915,6 +2110,31 @@ def _run_swap_impl(jid: str, job: Dict[str, Any]) -> None:
         if not converted:
             raise RuntimeError("seed-vc produced no converted wav")
         converted_vox = converted[-1]
+
+        # The instrumental can vanish while seed-vc is still converting. A swap
+        # runs 5-15 min, and a DELETE aimed at this jid rmtree's
+        # voice_swap_work/<jid>/ right out from under it (the mini's sentry
+        # sweeps delivered private songs, and /api/delete_song fans out to every
+        # node). seed-vc then RECREATES the directory on its way out —
+        # os.makedirs(args.output, exist_ok=True) — which is exactly why the
+        # failed swaps left a finished vc_vocals_*.wav behind and no htdemucs/,
+        # and why ffmpeg died on a missing no_vocals.wav every single time
+        # (4 attempts, 0 successes, found 2026-08-11).
+        #
+        # Re-split instead of binning the conversion we just spent minutes on.
+        if not no_vocals.is_file():
+            print(f"[swap {jid[:8]}] instrumental vanished mid-swap — re-splitting", flush=True)
+            _set("re-splitting the instrumental…", 0.86)
+            if not src_wav.is_file():
+                raise RuntimeError("source wav is gone too — song was deleted mid-swap")
+            work.mkdir(parents=True, exist_ok=True)
+            rr = subprocess.run(
+                [str(DEMUCS_BIN), "--two-stems", "vocals", "-d", "mps",
+                 "-o", str(work), str(src_wav)],
+                capture_output=True, text=True, timeout=600,
+            )
+            if rr.returncode != 0 or not no_vocals.is_file():
+                raise RuntimeError(f"demucs re-split failed: {(rr.stderr or '')[-300:]}")
 
         # Step 3 — ffmpeg mix.
         #
@@ -2001,6 +2221,61 @@ def _ace_post(path: str, payload: Dict[str, Any], timeout: int = 30) -> Dict[str
 def _ace_get(path: str, timeout: int = 10) -> Dict[str, Any]:
     with urlopen(ACE + path, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
+
+
+# ----- per-genre LoRA state on ACE -------------------------------------------
+# Dispatch is strictly one-job-at-a-time (see _dispatch_loop), so flipping
+# ACE's GLOBAL LoRA state per job is safe: no other render can land inside a
+# LoRA-on window. While a LoRA is on, ACE renders via the PyTorch decoder
+# (slower) — MLX ignores adapters (patched in lora/controls.py 2026-07-30).
+_ACE_LORA_ON = {"on": False}
+
+
+def _yield_gpu_for_customer() -> None:
+    """Tell any Story Forge render to get off the GPU RIGHT NOW (2026-07-31).
+
+    The renderers already poll our /api/status every 20s and yield — this hook
+    closes that 20s gap to ~instant by interrupting ComfyUI at the moment a
+    paying job is dispatched. Fire-and-forget in a thread with a hard timeout:
+    the customer's dispatch must NEVER wait on, or fail because of, the movie
+    pipeline. Matt's rule: customers start fast and take seniority; the film
+    works at its own pace in the gaps.
+    """
+    def _fire():
+        try:
+            req = UrlRequest("http://127.0.0.1:8188/interrupt", data=b"{}",
+                             headers={"Content-Type": "application/json"})
+            urlopen(req, timeout=3).read()
+            print("[dispatch] told ComfyUI to yield the GPU for this customer", flush=True)
+        except Exception:
+            pass  # no renderer running (the usual case) — nothing to yield
+    threading.Thread(target=_fire, daemon=True).start()
+
+
+def _ensure_ace_lora(want: bool) -> None:
+    """Idempotently put ACE's LoRA state where the NEXT job needs it.
+    Failure to turn ON degrades gracefully (job renders on the base model);
+    failure to turn OFF fails safe by forcing another unload attempt."""
+    if want == _ACE_LORA_ON["on"]:
+        return
+    try:
+        if want:
+            _ace_post("/v1/lora/load", {"lora_path": str(REGGAE_LORA_ADAPTER)}, timeout=180)
+            _ace_post("/v1/lora/toggle", {"use_lora": True}, timeout=60)
+            print("[lora] roots-reggae adapter ON", flush=True)
+        else:
+            _ace_post("/v1/lora/toggle", {"use_lora": False}, timeout=60)
+            _ace_post("/v1/lora/unload", {}, timeout=120)
+            print("[lora] adapter OFF (base model)", flush=True)
+        _ACE_LORA_ON["on"] = want
+    except Exception as e:
+        print(f"[lora] state change failed: {e} — forcing OFF for safety", flush=True)
+        try:
+            _ace_post("/v1/lora/toggle", {"use_lora": False}, timeout=60)
+            _ace_post("/v1/lora/unload", {}, timeout=120)
+        except Exception:
+            pass
+        _ACE_LORA_ON["on"] = False
 
 
 _ACE_STATE = {"alive": False, "ts": 0.0}
@@ -2223,6 +2498,7 @@ def _worker():
                                 and "no vocal" not in style_l2
                             if wants_vocals:
                                 job["stage"] = "checking the vocals landed…"
+                                job["progress"] = 0.88
                             if wants_vocals and not _has_sung_vocals(local):
                                 rescued = False
                                 for alt in (job.get("ace_cache_files") or [])[1:]:
@@ -2256,6 +2532,7 @@ def _worker():
                                         continue
                                     print(f"[vocalgate] {job['id'][:8]} still instrumental after 2 re-renders — shipping as-is", flush=True)
                             job["stage"] = "tightening the intro…"
+                            job["progress"] = 0.91
                             target = float(job.get("duration") or 0)  # what the customer bought
                             cut = _trim_long_intro(local, target)
                             if cut:
@@ -2270,6 +2547,7 @@ def _worker():
                             # exactly what the customer will hear first.
                             if _detect_gender((job.get("style") or job.get("idea") or "").lower()) == "female":
                                 job["stage"] = "checking the lead voice…"
+                                job["progress"] = 0.94
                                 reads_male = _lead_vocal_reads_male(local)
                                 gtries = job.get("gender_retries", 0)
                                 if reads_male is True and gtries < 3:
@@ -2330,6 +2608,7 @@ def _worker():
                             g_label, g_enemies = _requested_genre(style_l2)
                             if wants_vocals and g_label and CLAP_SCRIPT.is_file() and CLAP_PY.is_file():
                                 job["stage"] = "checking the genre landed…"
+                                job["progress"] = 0.97
                                 try:
                                     gr = subprocess.run(
                                         [str(CLAP_PY), str(CLAP_SCRIPT), str(local), g_label] + g_enemies,
@@ -2338,15 +2617,29 @@ def _worker():
                                 except Exception as e:
                                     gv = {"verdict": "skip", "reason": str(e)}
                                 print(f"[genregate] {job['id'][:8]} asked {g_label} -> {gv}", flush=True)
-                                if gv.get("verdict") == "fail":
+                                if gv.get("verdict") == "fail" and GENRE_GATE_ENFORCE:
                                     gtr = job.get("genre_retries", 0)
+                                    # Bank this attempt — "best effort" must mean the
+                                    # BEST-scoring roll, not whichever came last
+                                    # (2026-07-30: a reggae job rolled off-genre 3×
+                                    # and shipped the WORST of the three).
+                                    try:
+                                        cand = local.with_name(f"{local.stem}.try{gtr}.wav")
+                                        shutil.copy(str(local), str(cand))
+                                        job.setdefault("_genre_cands", []).append(
+                                            [str(cand), float(gv.get("requested_prob") or 0.0)])
+                                    except Exception as e:
+                                        print(f"[genregate] candidate bank failed: {e}", flush=True)
                                     if gtr < 2:
                                         wrong = (gv.get("top") or [["another genre", 0]])[0][0]
                                         with JOBS_LOCK:
                                             job["genre_retries"] = gtr + 1
                                             ap = job["ace_payload"]
+                                            # Positive-only pressure — "absolutely NOT {wrong}"
+                                            # injected the wrong genre's tokens INTO the caption
+                                            # (encoders can't negate) and made retries WORSE.
                                             ap["prompt"] = (f"PURE {g_label}, authentic {g_label} rhythm section "
-                                                            f"and instrumentation, absolutely NOT {wrong}, "
+                                                            f"and instrumentation, "
                                                             + ap.get("prompt", ""))
                                             job["ace_task_id"] = None
                                             job["status"] = "queued"
@@ -2354,7 +2647,32 @@ def _worker():
                                             job["stage"] = "wrong genre came back — re-forging"
                                         print(f"[genregate] {job['id'][:8]} {wrong} on a {g_label} request — re-render {gtr + 1}/2", flush=True)
                                         continue
-                                    print(f"[genregate] {job['id'][:8]} still off-genre after 2 re-renders — shipping best effort", flush=True)
+                                    try:
+                                        cands = list(job.get("_genre_cands") or [])
+                                        best_path, best_score = max(cands, key=lambda c: c[1])
+                                        if best_path != str(local) and Path(best_path).is_file():
+                                            shutil.copy(best_path, str(local))
+                                            print(f"[genregate] {job['id'][:8]} shipping BEST of "
+                                                  f"{len(cands)} rolls (score {best_score:.2f})", flush=True)
+                                    except Exception as e:
+                                        print(f"[genregate] best-pick failed: {e}", flush=True)
+                                    finally:
+                                        for p, _ in (job.get("_genre_cands") or []):
+                                            try:
+                                                if p != str(local):
+                                                    Path(p).unlink()
+                                            except Exception:
+                                                pass
+                                        job.pop("_genre_cands", None)
+                                    print(f"[genregate] {job['id'][:8]} still off-genre after 2 re-renders — shipped best-scoring roll", flush=True)
+                                elif job.get("_genre_cands"):
+                                    # A re-roll passed — banked losers are no longer needed.
+                                    for p, _ in job["_genre_cands"]:
+                                        try:
+                                            Path(p).unlink()
+                                        except Exception:
+                                            pass
+                                    job.pop("_genre_cands", None)
                             # bookkeeping: store what actually ships
                             if cut and not fitted and target:
                                 job["duration"] = max(15.0, target + 20.0 - cut) if target <= 220 else max(15.0, target - cut)
@@ -2465,6 +2783,14 @@ def _dispatch_loop():
                             nxt["ace_payload"]["lyrics"] = lyr
                             nxt["needs_lyrics"] = False
                             nxt["stage"] = "lyrics done — sending to ACE"
+                    # Reggae requests render with Matt's roots-reggae LoRA
+                    # (2026-07-30, his ear approved v2/epoch-200). Everything
+                    # else — and any LoRA failure — renders on the base model.
+                    _yield_gpu_for_customer()
+                    _ensure_ace_lora(
+                        REGGAE_LORA_ADAPTER.is_dir()
+                        and any(k in (nxt.get("style") or "").lower()
+                                for k in REGGAE_GENRE_KEYS))
                     resp = _ace_post("/release_task", nxt["ace_payload"], timeout=15)
                     ace_tid = (resp.get("data") or {}).get("task_id")
                     if not ace_tid:
@@ -2724,6 +3050,19 @@ class Handler(BaseHTTPRequestHandler):
                 "warm": _engines_warm(),
                 "jobs_total": len(latest),
                 "jobs_running": sum(1 for j in latest if j.get("status") in ("queued","running")),
+                # Honest render-slot depth (2026-08-12). jobs_running counts
+                # EVERY job this node holds — including voice swaps, which
+                # _dispatch_loop deliberately skips so they never occupy the
+                # single ACE slot, and Matt's own desktop jobs. The router
+                # routes on that number, so a node that had just finished a
+                # Black-voice song advertised itself a job deeper than it was
+                # and pushed the next customer away from an idle machine.
+                # queue_depth counts only what actually competes for the ACE
+                # slot — same predicate _dispatch_loop uses. Purely additive:
+                # jobs_running keeps its old meaning for every other caller.
+                "queue_depth": sum(1 for j in latest
+                                   if j.get("status") in ("queued", "running")
+                                   and j.get("kind") != "swap"),
                 "last": _status_last(latest[0]) if latest else None,
                 "download": _ace_download_status(),
             })
@@ -2961,6 +3300,24 @@ class Handler(BaseHTTPRequestHandler):
                 bpm_in = None
             prompt = _seed_prompt(style, idea, bpm_in)
 
+            # Planner per genre (2026-08-17). Measured on one reggae song, same
+            # words / caption / seed 4242:  planner ON 35.0% repeat, planner OFF
+            # 6.9% (1.1% on a second seed). Hip-hop measured the opposite way —
+            # ON 5.3%/4.1%, OFF 9.3%/12.6% — so this is per-genre, not global.
+            # Reggae's groove repeats a bar by design and the autoregressive code
+            # predictor locks onto it. Matt heard this before the numbers did.
+            # body["planner"] ("on"/"off") still overrides per request.
+            _pl = str(body.get("planner", "auto")).strip().lower()
+            if _pl in ("off", "none", "false", "0", "no"):
+                planner_on = False
+            elif _pl in ("on", "true", "1", "yes"):
+                planner_on = True
+            else:
+                planner_on = not any(k in (style or "").lower()
+                                     for k in REGGAE_GENRE_KEYS)
+            if not planner_on:
+                print("[planner] off for this job (reggae or explicit)", flush=True)
+
             try:
                 duration = float(body.get("duration") or 120.0)
             except Exception:
@@ -2996,9 +3353,65 @@ class Handler(BaseHTTPRequestHandler):
                 "lyrics": lyrics,
                 "vocal_language": language,
                 "task_type": "text2music",
+                # ACE-Step's autoregressive LM planner (2026-08-15). It had
+                # never been switched on here — ACESTEP_INIT_LLM shipped as
+                # `auto` and resolved to no planner, which is the only reason
+                # MiniMax ever sounded better than us.
+                # use_cot_caption MUST stay False: it defaults True, and when
+                # true the planner discards Matt's whole style caption and
+                # writes its own. That single default is what made the
+                # 2026-07-29 trial come back "no lyrics and repetitive" and got
+                # the planner cut — it was never the planner's fault.
+                # 2026-08-16, MEASURED — planner OFF for customers again.
+                # Same song, same caption, same seed 4242, only the planner
+                # settings moving. Share of 2s chunks that repeat another
+                # chunk (six songs shipped before the planner: 0.4-1.9%):
+                #     planner off                       1.8%   0.86 min
+                #     1.7B + rep 1.15 + top_k 50        2.3%   1.35 min
+                #     4B   + rep 1.15 + k50 + top_p .85 3.3%   1.83 min
+                #     4B   + rep 1.15 + top_k 50        4.8%   1.83 min
+                #     1.7B, default decoding            5.7%   1.34 min
+                #     4B   + rep 1.25 + top_k 40        6.2%   1.83 min
+                #     4B   + rep 1.10                  40.8%   2.50 min
+                #     4B,  default decoding            68.6%   2.84 min
+                # lm_repetition_penalty defaults to 1.0 — NO penalty — and at
+                # 68% the song sticks on one sound for 30s at a time. That is
+                # what the 2026-07-29 trial called "repetitive"; that trial was
+                # right, and use_cot_caption was never the cause.
+                # 2026-08-17, Matt's ear + measurement agree: the planner gives
+                # the more authentic vocal, so it is ON — but ONLY the 1.7B, and
+                # ONLY with a repetition penalty. The 4B is not safe at any
+                # setting. Same reggae song, three seeds, penalty applied to both:
+                #     1.7B   3.4% / 3.5% / 5.1%   ~1.2 min
+                #     4B    52.4% / 65.5% / 77.3%  ~2.3 min
+                # The 4B's penalty fix that worked on a hip-hop song (68.6% ->
+                # 2.6%) did nothing for reggae. A bigger next-token model commits
+                # harder to the pattern it already started, and reggae's groove
+                # repeats by design. No planner scores 6.5% on the same song, so
+                # the 1.7B is BETTER than off, for ~25s more per song.
+                # ACE must be started with --lm-model-path acestep-5Hz-lm-1.7B
+                # (start_api_server_macos.sh) or these flags render planner-less.
+                # ACE defaults lm_repetition_penalty to 1.0 — NO penalty at all.
+                # That single default is what made every planner render loop
+                # (68.6% of a song being the same 2s over again). These three
+                # are not optional whenever thinking is True.
+                **({"thinking": True,
+                    "use_cot_caption": False,
+                    "use_cot_metas": True,
+                    "use_cot_lyrics": False,
+                    "lm_repetition_penalty": 1.15,
+                    "lm_top_k": 50,
+                    "lm_top_p": 0.85} if planner_on else {"thinking": False}),
                 "inference_steps": steps,
                 "guidance_scale": gscale,
                 "audio_format": "wav",
+                # Structured bpm reinforces the caption's "<n> bpm" text —
+                # ACE-Step 1.5 accepts it as metadata. Only sent when the
+                # caller gave a bpm or a modern-rap default fired, so legacy
+                # genres render exactly as before (2026-07-29).
+                **({"bpm": _default_bpm((style or "").lower(), bpm_in)}
+                   if (bpm_in or any(k in (style or "").lower() for k in MODERN_RAP_KEYS))
+                   else {}),
                 # Vocal songs render with +20s headroom: ACE loves 20-30s
                 # instrumental intros, _trim_long_intro cuts them, and without
                 # the pad a 60s purchase came back 35s (2026-07-08). Trimmed
@@ -3073,6 +3486,16 @@ class Handler(BaseHTTPRequestHandler):
                 }
             else:
                 voice_assist = _pick_black_voice_for_style(style)
+            # Customer songs are handed over the instant the render finishes,
+            # and the auto swap writes a SEPARATE track under its own id that
+            # the customer never receives — so it burned a render slot making a
+            # better song nobody heard, then the never-store sweep deleted it an
+            # hour later. Matt 2026-08-12: stop making it for them. His own
+            # library songs (private=False) keep the swap, and anyone who
+            # actually asks — an explicit voice_path, or auto_voice_assist:true
+            # — still gets one.
+            if voice_assist and private and opt_in is not True and not forced_path:
+                voice_assist = None
             ids = []
             with JOBS_LOCK:
                 for i in range(count):

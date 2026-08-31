@@ -33,3 +33,5 @@ piper_voices/
 radio/
 *.bak-*
 *.bak[0-9]*
+engines-unused/
+recovered_20260817/
