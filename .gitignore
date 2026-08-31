@@ -35,3 +35,9 @@ radio/
 *.bak[0-9]*
 engines-unused/
 recovered_20260817/
+AGENT_NOTES_FROM_MINI.md
+README_TODO.md
+TODO.md
+forge_guard.py
+m5_supervisor.sh
+mem_client.py
