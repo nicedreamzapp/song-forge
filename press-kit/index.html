@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Forge: type a vibe, get a whole song</title>
+<meta name="description" content="Song Forge turns a one-line description into a finished song with lyrics, music and vocals. Free on iPhone and Android, 10 songs on the house, no account, no subscription.">
+<link rel="canonical" href="https://nicedreamzwholesale.com/software/song-forge/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Nice Dreamz Software">
+<meta property="og:title" content="Song Forge: type a vibe, get a whole song">
+<meta property="og:description" content="Describe a song in one line. Song Forge writes the lyrics, makes the music and vocals, and hands you a finished track you own. Free on iPhone and Android.">
+<meta property="og:url" content="https://nicedreamzwholesale.com/software/song-forge/">
+<meta property="og:image" content="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/1_make_songs.png">
+<meta property="og:image:alt" content="Song Forge home screen: Make a real song. Own it forever.">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Song Forge: type a vibe, get a whole song">
+<meta name="twitter:description" content="One line in, a finished song out. Lyrics, music and vocals. Free on iPhone and Android, no account, no subscription.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/1_make_songs.png">
+<meta name="twitter:image:alt" content="Song Forge home screen: Make a real song. Own it forever.">
+
+<link rel="icon" href="../ios/docs/appstore/appicon.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Song Forge",
+  "alternateName": "OwnATune",
+  "description": "Song Forge turns a one-line description into a finished song with lyrics, music and vocals.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "iOS, Android",
+  "url": "https://nicedreamzwholesale.com/software/song-forge/",
+  "downloadUrl": [
+    "https://apps.apple.com/us/app/id6788616929",
+    "https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune"
+  ],
+  "image": "https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/appicon.png",
+  "screenshot": [
+    "https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/1_make_songs.png",
+    "https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/2_describe_it.png",
+    "https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/3_forging.png",
+    "https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/ios/docs/appstore/4_pricing.png"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "Free download with 10 songs included. On iPhone, 30 more songs are $2.99, a one-time purchase."
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Matt Macosko"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Nice Dreamz LLC",
+    "url": "https://nicedreamzwholesale.com/software/"
+  },
+  "license": "https://opensource.org/licenses/MIT"
+}
+</script>
+
+<style>
+  :root {
+    --bg: #0d0b0a;
+    --surface: #1a1613;
+    --surface-2: #241e1a;
+    --line: #3a302a;
+    --text: #f4ede6;
+    --muted: #b9ada2;
+    --accent: #ff8a1f;
+    --accent-2: #f0c35a;
+    --accent-ink: #1a0f05;
+    --todo-bg: #3b2a00;
+    --todo-text: #ffd66b;
+    --radius: 16px;
+    --gutter: 16px;
+    --max: 1040px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #fbf7f2;
+      --surface: #ffffff;
+      --surface-2: #f4ece3;
+      --line: #e3d6c8;
+      --text: #1d1813;
+      --muted: #5f5348;
+      --accent: #c75a00;
+      --accent-2: #8a6200;
+      --accent-ink: #ffffff;
+      --todo-bg: #fff1c2;
+      --todo-text: #6b4a00;
+    }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow-wrap: break-word;
+  }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: var(--accent); }
+  a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; border-radius: 6px; }
+
+  .skip { position: absolute; left: -9999px; }
+  .skip:focus { left: var(--gutter); top: var(--gutter); background: var(--surface); padding: 8px 12px; z-index: 10; }
+
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+  section { padding: 40px 0; border-top: 1px solid var(--line); }
+  h1, h2, h3 { line-height: 1.2; margin: 0 0 12px; }
+  h1 { font-size: clamp(2rem, 8vw, 3.4rem); letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.4rem, 5vw, 2rem); }
+  h3 { font-size: 1.1rem; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+
+  /* hero */
+  header.hero { padding: 40px 0 32px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .brand img { width: 56px; height: 56px; border-radius: 13px; }
+  .brand span { font-weight: 700; font-size: 1.15rem; }
+  .pitch { font-size: clamp(1.1rem, 4.2vw, 1.35rem); color: var(--muted); max-width: 36em; }
+  .pitch strong { color: var(--text); }
+
+  .stores { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 12px; }
+  .store {
+    display: inline-flex; flex-direction: column; justify-content: center;
+    min-height: 56px; padding: 8px 18px; border-radius: 12px;
+    text-decoration: none; font-weight: 700; line-height: 1.2;
+    background: var(--accent); color: var(--accent-ink);
+    flex: 1 1 200px; max-width: 280px;
+  }
+  .store small { font-weight: 500; font-size: .78rem; opacity: .85; }
+  .store.alt { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+  .fine { font-size: .92rem; color: var(--muted); }
+
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 24px; max-width: 560px; }
+  .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .fact b { display: block; color: var(--accent-2); font-size: 1.05rem; }
+  .fact span { font-size: .88rem; color: var(--muted); }
+
+  /* screenshots */
+  .shots {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0; padding: 0; list-style: none;
+  }
+  .shots figure { margin: 0; }
+  .shots img { width: 100%; max-width: 201px; margin: 0 auto; border-radius: 18px; border: 1px solid var(--line); }
+  .shots figcaption { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 8px; }
+
+  /* features */
+  .grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card code { font-size: .85em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
+
+  .todo {
+    display: inline-block; background: var(--todo-bg); color: var(--todo-text);
+    font-size: .78rem; font-weight: 700; padding: 1px 6px; border-radius: 5px;
+    letter-spacing: .02em;
+  }
+
+  /* faq */
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+  summary { cursor: pointer; padding: 14px 16px; font-weight: 600; list-style-position: outside; }
+  details > div { padding: 0 16px 14px; }
+  details > div p:last-child { margin-bottom: 0; }
+
+  ul.plain { padding-left: 20px; margin: 0 0 14px; }
+  ul.plain li { margin-bottom: 6px; }
+
+  footer { padding: 32px 0 48px; border-top: 1px solid var(--line); font-size: .92rem; color: var(--muted); }
+
+  @media (min-width: 700px) {
+    .shots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .facts { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; }
+    header.hero { padding: 64px 0 48px; }
+  }
+  @media (min-width: 1000px) {
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <img src="../ios/docs/appstore/appicon.png" alt="" width="56" height="56">
+      <span>Song Forge</span>
+    </div>
+    <h1>Type a vibe. Get a whole song.</h1>
+    <p class="pitch"><strong>Describe a song in one line and Song Forge writes the lyrics, makes the music and the vocals, and hands you a finished track that is yours.</strong></p>
+
+    <div class="stores" aria-label="Download links">
+      <a class="store" href="https://apps.apple.com/us/app/id6788616929"><small>Download on the</small>App Store</a>
+      <a class="store alt" href="https://play.google.com/store/apps/details?id=com.nicedreamz.ownatune"><small>Get it on</small>Google Play</a>
+    </div>
+    <p class="fine">Free. 10 songs on the house. No subscription, no account, no email.</p>
+
+    <div class="facts">
+      <div class="fact"><b>10 free songs</b><span>to start</span></div>
+      <div class="fact"><b>1 to 4 minutes</b><span>you pick the length</span></div>
+      <div class="fact"><b>$2.99 for 30</b><span>iPhone, one-time</span></div>
+      <div class="fact"><b>Yours</b><span>full commercial rights</span></div>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section aria-labelledby="what">
+  <div class="wrap">
+    <h2 id="what">What it does</h2>
+    <p>You type something like <em>"sunset reggae with steel pan, 78 bpm"</em> or <em>"a slow soul song about 20 years married"</em>. Pick a length from one to four minutes and tap Make my song.</p>
+    <p>Song Forge writes lyrics that fit the idea, generates the full arrangement with sung vocals, and drops the finished song into your song box on the phone. You can play it, save it, and use it however you like.</p>
+    <p class="muted">The songs are rendered on Nice Dreamz's own Apple Silicon hardware, not on a big-tech AI cloud. No third-party AI API is involved.</p>
+  </div>
+</section>
+
+<section aria-labelledby="shots">
+  <div class="wrap">
+    <h2 id="shots">Screenshots</h2>
+    <ul class="shots">
+      <li><figure><img src="../ios/docs/appstore/1_make_songs.png" width="201" height="436" loading="lazy" alt="Home screen reading Make a real song. Own it forever. With a Make my first song, free button and tiles for 10 free songs, up to 4 minutes, full commercial rights, and 30 songs for $3."><figcaption>Start free</figcaption></figure></li>
+      <li><figure><img src="../ios/docs/appstore/2_describe_it.png" width="201" height="436" loading="lazy" alt="Describe screen with a text box for the song idea, example prompt chips, and length buttons for 1, 2, 3 or 4 minutes above a Make my song button."><figcaption>Describe it</figcaption></figure></li>
+      <li><figure><img src="../ios/docs/appstore/3_forging.png" width="201" height="436" loading="lazy" alt="Progress banner reading Forging your song, hammering it out, 42 percent, with the finished song landing in the song box below."><figcaption>Watch it forge</figcaption></figure></li>
+      <li><figure><img src="../ios/docs/appstore/4_pricing.png" width="201" height="436" loading="lazy" alt="Pricing screen: 30 songs for $2.99, one tap, no subscription, songs up to 4 minutes, any genre, full commercial rights, songs live on your device."><figcaption>No subscription</figcaption></figure></li>
+    </ul>
+  </div>
+</section>
+
+<section aria-labelledby="who">
+  <div class="wrap">
+    <h2 id="who">Who it's for</h2>
+    <ul class="plain">
+      <li>Anyone who wants a real song for a birthday, an anniversary, a team, or a joke between friends, without learning an instrument or music software.</li>
+      <li>Video makers who need a track they own outright.</li>
+      <li>People who would rather describe music in a sentence than build it on a timeline.</li>
+      <li>Anyone who does not want another subscription or another account.</li>
+    </ul>
+  </div>
+</section>
+
+<section aria-labelledby="features">
+  <div class="wrap">
+    <h2 id="features">Key features</h2>
+    <div class="grid three">
+      <div class="card">
+        <h3>One line in, full song out</h3>
+        <p>Name the genre, the instruments, the voice and what it's about. Example prompts are right there if you want a starting point.</p>
+      </div>
+      <div class="card">
+        <h3>Lyrics with guardrails</h3>
+        <p>A local Gemma model writes the words. The server rejects output that contains banned stock phrases, retries, and falls back to generated seed lyrics if the lyric model is down.</p>
+      </div>
+      <div class="card">
+        <h3>Real vocals, any genre</h3>
+        <p>ACE-Step makes the music and the singing. Song Forge adds per-genre vocal cues for gospel, soul, hip-hop, reggae and more, so every style does not come out as the same pop voice.</p>
+      </div>
+      <div class="card">
+        <h3>Lyrics that stay in sync</h3>
+        <p>Whisper times what was actually sung, then the server fuzzy-matches it back to the written lyrics so the lyric timing follows the song without showing transcription mistakes. <span class="todo">TODO-VERIFY</span> synced lyrics display in the phone apps.</p>
+      </div>
+      <div class="card">
+        <h3>No account, no tracking</h3>
+        <p>The app makes a random ID on first launch to count your free songs. No sign-in, no ads, no ad SDKs, no third-party analytics.</p>
+      </div>
+      <div class="card">
+        <h3>Songs land on your phone</h3>
+        <p>Finished songs are delivered to your device. On Android they save through the system download manager. Nice Dreamz does not keep copies of finished songs on its servers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="faq">
+  <div class="wrap">
+    <h2 id="faq">FAQ</h2>
+
+    <details>
+      <summary>How much does it cost?</summary>
+      <div>
+        <p>The app is free and comes with 10 songs. On iPhone, 30 more songs are $2.99, billed once through your App Store account. There is no subscription.</p>
+        <p>On Android, buying more songs is not available yet. The free songs work today.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Do I need an account?</summary>
+      <div><p>No. No sign-in, no password, no email.</p></div>
+    </details>
+
+    <details>
+      <summary>Who owns the songs?</summary>
+      <div><p>You do, with full commercial rights. Sell it, gift it, put it in your videos.</p></div>
+    </details>
+
+    <details>
+      <summary>How long does a song take to make?</summary>
+      <div><p>The app's own screen says a full-length song in about a minute. Actual time depends on the length you pick and how many songs are in the queue. <span class="todo">TODO-VERIFY</span> typical wait time from real render logs.</p></div>
+    </details>
+
+    <details>
+      <summary>Where are the songs made?</summary>
+      <div><p>On Nice Dreamz's own Apple Silicon machines, running open models: ACE-Step for music, Gemma for lyrics, Whisper for lyric timing, on Apple's MLX. Your typed description is sent there so the song can be made.</p></div>
+    </details>
+
+    <details>
+      <summary>Can it sing in my voice?</summary>
+      <div><p>The render engine has a voice swap pipeline (Demucs vocal split, seed-vc voice conversion, ffmpeg remix) that re-sings a song from a short voice sample. <span class="todo">TODO-VERIFY</span> whether voice swap is exposed in the iPhone and Android apps today.</p></div>
+    </details>
+
+    <details>
+      <summary>Is it accessible?</summary>
+      <div>
+        <p>Making a song takes typing one sentence and tapping one button. No music skill, no timeline, no fine motor work on a piano roll. The Android app is portrait only.</p>
+        <p><span class="todo">TODO-VERIFY</span> VoiceOver and TalkBack support, Dynamic Type, and contrast have not been documented in this repo. Feedback from screen reader users is welcome at the contact address below.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Is it open source?</summary>
+      <div><p>The iOS render server, web UI and Android client in the <a href="https://github.com/nicedreamzapp/song-forge">song-forge repo</a> are MIT licensed. The engines it runs (ACE-Step, seed-vc, Whisper, Gemma, MLX) are upstream projects by their own authors, listed in <a href="https://github.com/nicedreamzapp/song-forge/blob/main/CREDITS.md">CREDITS.md</a>.</p></div>
+    </details>
+  </div>
+</section>
+
+<section aria-labelledby="privacy">
+  <div class="wrap">
+    <h2 id="privacy">Privacy, in short</h2>
+    <p>Two things leave your phone: the song description you type, and a random app ID made on first launch so the app can count free and purchased songs. That's it.</p>
+    <ul class="plain">
+      <li>No account, no name, no email.</li>
+      <li>No location, contacts, photos, camera or microphone access.</li>
+      <li>No ads, no trackers, no third-party analytics. Data is not sold or shared.</li>
+      <li>Purchases are handled by Apple or Google. Card details are never seen.</li>
+      <li>Delete the app and the random ID and your local song box go with it.</li>
+      <li>For general audiences, 13 and up.</li>
+    </ul>
+    <p><a href="https://github.com/nicedreamzapp/song-forge/blob/main/PRIVACY.md">Read the full privacy policy</a> (effective July 14, 2026).</p>
+  </div>
+</section>
+
+<section aria-labelledby="credits">
+  <div class="wrap">
+    <h2 id="credits">Built on</h2>
+    <p>Song Forge's server, lyric pipeline, lyric timing, voice swap pipeline, UI and Android client were built by Matt Macosko. The models and engines underneath are other people's work:</p>
+    <p class="muted"><a href="https://github.com/ace-step/ACE-Step">ACE-Step</a> (music), <a href="https://github.com/Plachtaa/seed-vc">seed-vc</a> by Plachtaa (voice conversion), <a href="https://github.com/openai/whisper">Whisper</a> by OpenAI (timing), Gemma by Google DeepMind (lyrics, served through LM Studio), <a href="https://github.com/ml-explore/mlx">MLX</a> by Apple's ml-explore team, Demucs, ffmpeg and Three.js. Some repo maintenance was done with Anthropic's Claude Code.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Questions, bugs or press: <a href="mailto:info@nicedreamzwholesale.com">info@nicedreamzwholesale.com</a></p>
+    <p>Made by Matt Macosko at Nice Dreamz LLC. More apps at <a href="https://nicedreamzwholesale.com/software/">nicedreamzwholesale.com/software</a>.</p>
+  </div>
+</footer>
+</body>
+</html>
