@@ -14,11 +14,20 @@ No big-tech AI cloud, no subscription, no API keys. Songs render on my own hardw
 
 </div>
 
+<a id="what"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-banner.svg" width="100%" alt="01. What it is. A one-line description becomes a finished song"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-r1.svg" width="100%" alt="Lyrics, music and vocals. Describe a song and get a finished track. No account. 10 songs free, no subscription, no email. Own hardware. Songs render on my own Mac, no third-party AI API."></picture>
+
 **Song Forge turns a one-line description into a finished song with lyrics, music and vocals.**
 
 Song Forge is a native **iPhone (Apple) and Android (Google) app**. Describe a song, like *"sunset reggae with steel pan, 78 bpm"*, and Song Forge writes the lyrics, composes the music and vocals, and hands you a finished track. Drop in a 10-second voice sample and it'll re-sing the song in that voice. The phone sends your prompt to my own Mac render server (see [PRIVACY.md](PRIVACY.md)); no third-party AI API is involved.
 
-## 🛠 What I built (Matt Macosko)
+<img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s01-rule.svg" width="100%" alt="">
+
+
+<a id="built"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-banner.svg" width="100%" alt="02. What I built. Render server, lyrics, timing, voice swap and the Android app"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-r1.svg" width="100%" alt="Render server. A standard-library Python HTTP server around ACE-Step. Voice swap. Demucs split, seed-vc conversion, ffmpeg remix. Karaoke timing. Whisper timestamps fuzzy-matched to the written lyrics."></picture>
 
 - **Render server** [`ios/forge_server.py`](ios/forge_server.py): a standard-library Python HTTP server that takes an idea, writes lyrics, queues the song on ACE-Step, saves and tags the result, and serves the web UI and JSON API (`/api/song`, `/api/status`, `/api/songs`, `/api/voices`, ...).
 - **Lyric writing with guardrails** (`_llm_lyrics` in [`forge_server.py`](ios/forge_server.py)): prompts a local Gemma model, rejects output containing banned phrases, retries, and falls back to generated seed lyrics.
@@ -31,9 +40,16 @@ Song Forge is a native **iPhone (Apple) and Android (Google) app**. Describe a s
 
 **Upstream, not mine:** ACE-Step (music), seed-vc (voice conversion), Whisper (timing), Gemma (lyrics, served through LM Studio), MLX, Demucs, ffmpeg and Three.js. See [CREDITS.md](CREDITS.md).
 
+<img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s02-rule.svg" width="100%" alt="">
+
+
+<a id="platforms"></a>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-banner-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-banner-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-banner.svg" width="100%" alt="03. iOS, Android and links. Both platforms live on the stores"></picture>
+<picture><source media="(max-width: 610px), (min-width: 768px) and (max-width: 895px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-r1-m.svg"><source media="(max-width: 1149px)" srcset="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-r1-mid.svg"><img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-r1.svg" width="100%" alt="iPhone. Live on the App Store. Android. Live on Google Play. Run the server. Needs an Apple Silicon Mac, ACE-Step and LM Studio."></picture>
+
 This repo holds both platforms, cleanly separated:
 
-## 📱 iOS
+### 📱 iOS
 
 The local Mac render engine (`forge_server.py`, `forge_supervisor.sh`) that powers the apps, its web UI, and App Store screenshots in [`ios/docs/appstore/`](ios/docs/appstore/). Source in [`ios/`](ios/). The native iPhone wrapper (Swift) is not in this repo.
 
@@ -48,7 +64,7 @@ The local Mac render engine (`forge_server.py`, `forge_supervisor.sh`) that powe
 
 If LM Studio is down, lyrics fall back to simple generated seed lyrics. Publishing to the public site relies on a private `~/Scripts/songs_sync.py` that is not in this repo, so auto-publish is disabled without it.
 
-## 🤖 Android
+### 🤖 Android
 
 The Android port. Source in [`android/`](android/). Build with `cd android && ./gradlew assembleDebug` (JDK 17, compileSdk 35).
 
@@ -56,7 +72,10 @@ The Android port. Source in [`android/`](android/). Build with `cd android && ./
 
 **Not done yet:** in-app purchases on Android. The `buy()` bridge in `MainActivity.kt` is a stub that shows a "coming soon" notice; Google Play Billing is not wired up.
 
-## Links
+### Links
 
 - Product page: https://nicedreamzwholesale.com/software/song-forge/
 - Questions or bugs? **info@nicedreamzwholesale.com**
+
+<img src="https://raw.githubusercontent.com/nicedreamzapp/song-forge/main/assets/readme/s03-rule.svg" width="100%" alt="">
+
